@@ -6,6 +6,8 @@
 #include <cctype>
 #include <cmath>
 #include <unordered_map>
+#include <vector>
+#include <random>
 
 // Piece values (Centipawns)
 const int PIECE_VALUES[] = {
@@ -481,18 +483,37 @@ std::string Board::move_to_string(Move m) {
 }
 
 std::string Board::get_book_move(const std::string& history) {
-    static std::unordered_map<std::string, std::string> book = {
-        {"", "e2e4"},
-        {"e2e4 c7c5", "g1f3"},
-        {"e2e4 c7c5 g1f3", "d7d6"}, // Sicilian Standard Response
-        {"e2e4 c7c6", "d2d4"},
-        {"e2e4 c7c6 d2d4", "d7d5"}, // Caro-Kann Standard Response
-        {"e2e4 e7e5", "g1f3"},
-        {"e2e4 e7e5 g1f3 b8c6", "f1c4"}
+    static std::unordered_map<std::string, std::vector<std::string>> book = {
+        // White first move
+        {"", {"e2e4", "d2d4", "c2c4", "g1f3"}},
+        
+        // Responses to e2e4
+        {"e2e4", {"e7e5", "c7c5", "c7c6", "e7e6", "d7d5"}},
+        {"e2e4 c7c5", {"g1f3", "b1c3", "d2d4"}},
+        {"e2e4 c7c5 g1f3", {"d7d6", "e7e6", "b8c6"}},
+        {"e2e4 c7c6", {"d2d4", "g1f3", "b1c3"}},
+        {"e2e4 c7c6 d2d4", {"d7d5"}},
+        {"e2e4 e7e5", {"g1f3", "f2f4", "b1c3"}},
+        {"e2e4 e7e5 g1f3 b8c6", {"f1c4", "f1b5", "d2d4"}},
+        
+        // Responses to d2d4
+        {"d2d4", {"d7d5", "g8f6", "f7f5"}},
+        {"d2d4 d7d5", {"c2c4", "g1f3", "c1f4"}},
+        {"d2d4 g8f6", {"c2c4", "g1f3"}},
+        
+        // Responses to c2c4
+        {"c2c4", {"e7e5", "c7c5", "g8f6"}},
+        
+        // Responses to g1f3
+        {"g1f3", {"d7d5", "g8f6", "c7c5"}}
     };
     
     if (book.find(history) != book.end()) {
-        return book[history];
+        const auto& moves = book.at(history);
+        static std::random_device rd;
+        static std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(0, moves.size() - 1);
+        return moves[dis(gen)];
     }
     return "";
 }
