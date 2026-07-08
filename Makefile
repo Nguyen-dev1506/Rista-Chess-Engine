@@ -1,17 +1,20 @@
 CXX = g++
-CXXFLAGS = -O3 -Wall -Wextra -std=c++11
+CXXFLAGS = -O3 -Wall -Wextra -std=c++11 -Isrc
 
-SRCS = main.cpp board.cpp movegen.cpp search.cpp uci.cpp
-OBJS = $(SRCS:.cpp=.o)
+SRCS = $(wildcard src/*.cpp)
+OBJS = $(patsubst src/%.cpp,build/%.o,$(SRCS))
 TARGET = rista
 
-all: $(TARGET)
+all: build $(TARGET)
+
+build:
+	mkdir -p build
 
 $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
 
-%.o: %.cpp
+build/%.o: src/%.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJS) $(TARGET)
+	rm -rf build $(TARGET)
