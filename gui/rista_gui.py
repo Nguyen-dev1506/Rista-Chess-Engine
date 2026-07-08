@@ -28,7 +28,7 @@ class UCIEngine:
             command,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
             bufsize=1
         )
@@ -131,13 +131,13 @@ class ChessGUI:
             self.engine_rista.send("uci")
             self.engine_rista.send("isready")
             
-            self.engine_sunfish = UCIEngine([sys.executable, sunfish_path], "Sunfish")
+            self.engine_sunfish = UCIEngine([sys.executable, "-u", sunfish_path], "Sunfish")
             self.engine_sunfish.send("uci")
             self.engine_sunfish.send("isready")
             
             self.status_label.config(text="Khởi động Antares...", fg="orange")
             self.root.update_idletasks()
-            self.engine_antares = UCIEngine([sys.executable, antares_path], "Antares")
+            self.engine_antares = UCIEngine([sys.executable, "-u", antares_path], "Antares")
             self.engine_antares.send("uci")
             self.engine_antares.send("isready")
             
