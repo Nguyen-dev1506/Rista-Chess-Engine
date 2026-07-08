@@ -12,6 +12,7 @@ public:
     int en_passant;
     int castling_rights;
     int fifty_move;
+    uint64_t hash_key;
     
     // PST Evaluation
     int material_score;
@@ -39,6 +40,8 @@ public:
     
     // Opening Book
     static std::string get_book_move(const std::string& history);
+    
+    uint64_t generate_pos_key();
     
 private:
     void update_pst_score(int piece, int sq, bool is_add);

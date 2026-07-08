@@ -1,4 +1,5 @@
 #include "board.h"
+#include "zobrist.h"
 #include <iostream>
 #include <sstream>
 #include <cctype>
@@ -111,6 +112,25 @@ int get_pst_value(int piece, int sq) {
     return piece > 0 ? val : -val;
 }
 
+
+uint64_t Board::generate_pos_key() {
+    uint64_t final_key = 0;
+    for (int sq = 0; sq < 120; sq++) {
+        int piece = pieces[sq];
+        if (piece != OFFBOARD && piece != EMPTY) {
+            final_key ^= piece_keys[get_piece_index(piece)][sq];
+        }
+    }
+    if (side == BLACK) {
+        final_key ^= side_key;
+    }
+    if (en_passant != SQ_NONE) {
+        final_key ^= ep_keys[en_passant];
+    }
+    final_key ^= castling_keys[castling_rights];
+    return final_key;
+}
+
 Board::Board() {
     reset();
 }
@@ -130,6 +150,7 @@ void Board::reset() {
     material_score = 0;
     pst_score = 0;
     history.clear();
+    hash_key = 0;
 }
 
 void Board::set_fen(const std::string& fen) {
@@ -187,6 +208,7 @@ void Board::set_fen(const std::string& fen) {
     }
     
     if (!halfmove_part.empty()) fifty_move = std::stoi(halfmove_part);
+    hash_key = generate_pos_key();
 }
 
 void Board::update_pst_score(int piece, int sq, bool is_add) {
@@ -199,6 +221,7 @@ void Board::update_pst_score(int piece, int sq, bool is_add) {
         material_score -= mat;
         pst_score -= pst;
     }
+    hash_key ^= piece_keys[get_piece_index(piece)][sq];
 }
 
 bool Board::make_move(Move m) {
@@ -215,6 +238,10 @@ bool Board::make_move(Move m) {
     undo.en_passant = en_passant;
     undo.castling_rights = castling_rights;
     undo.fifty_move = fifty_move;
+    undo.hash_key = hash_key;
+    
+    if (en_passant != SQ_NONE) hash_key ^= ep_keys[en_passant];
+    hash_key ^= castling_keys[castling_rights];
     
     history.push_back(undo);
     
@@ -260,6 +287,7 @@ bool Board::make_move(Move m) {
     en_passant = SQ_NONE;
     if (std::abs(piece) == W_PAWN && std::abs(from - to) == 20) {
         en_passant = (side == WHITE) ? from + 10 : from - 10;
+        hash_key ^= ep_keys[en_passant];
     }
     
     // Update Castling rights
@@ -270,6 +298,9 @@ bool Board::make_move(Move m) {
     if (from == A1 || to == A1) castling_rights &= ~WQ_CASTLING;
     if (from == H8 || to == H8) castling_rights &= ~BK_CASTLING;
     if (from == A8 || to == A8) castling_rights &= ~BQ_CASTLING;
+    
+    hash_key ^= castling_keys[castling_rights];
+    hash_key ^= side_key; // side switches
     
     fifty_move++;
     if (captured != EMPTY || std::abs(piece) == W_PAWN) fifty_move = 0;
@@ -291,6 +322,7 @@ void Board::unmake_move() {
     
     UndoMove undo = history.back();
     history.pop_back();
+    hash_key = undo.hash_key;
     
     Move m = undo.move;
     int from = move_from(m);

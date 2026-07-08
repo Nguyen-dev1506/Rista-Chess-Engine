@@ -89,6 +89,7 @@ struct UndoMove {
     int en_passant; // square for en_passant, or SQ_NONE
     int castling_rights;
     int fifty_move;
+    uint64_t hash_key;
 };
 
 #endif
