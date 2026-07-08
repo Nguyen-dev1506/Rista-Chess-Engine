@@ -70,6 +70,7 @@ class ChessGUI:
         
         self.engine_rista = None
         self.engine_sunfish = None
+        self.engine_antares = None
         
         self.game_mode = "USER_VS_RISTA"
         self.is_engine_turn = False
@@ -106,8 +107,11 @@ class ChessGUI:
         self.new_game_btn = tk.Button(right_panel, text="Play as White vs Rista", command=self.new_game)
         self.new_game_btn.pack(fill=tk.X, pady=(10, 5))
         
-        self.eve_btn = tk.Button(right_panel, text="Rista vs Sunfish", command=self.start_eve)
+        self.eve_btn = tk.Button(right_panel, text="Rista vs Sunfish", command=lambda: self.start_eve("RISTA_VS_SUNFISH"))
         self.eve_btn.pack(fill=tk.X, pady=(5, 5))
+        
+        self.eve2_btn = tk.Button(right_panel, text="Rista vs Antares", command=lambda: self.start_eve("RISTA_VS_ANTARES"))
+        self.eve2_btn.pack(fill=tk.X, pady=(5, 5))
         
         # Status Label
         self.status_label = tk.Label(right_panel, text="Ready", fg="blue", font=("Arial", 12, "bold"))
@@ -117,15 +121,25 @@ class ChessGUI:
 
 
     def start_engine(self):
+        import os, sys
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        rista_path = os.path.join(script_dir, "..", "rista")
+        sunfish_path = os.path.join(script_dir, "sunfish.py")
+        antares_path = os.path.join(script_dir, "..", "Antares-master", "main.py")
         try:
-            self.engine_rista = UCIEngine(["./rista"], "Rista")
+            self.engine_rista = UCIEngine([rista_path], "Rista")
             self.engine_rista.send("uci")
             self.engine_rista.send("isready")
             
-            import sys
-            self.engine_sunfish = UCIEngine([sys.executable, "sunfish.py"], "Sunfish")
+            self.engine_sunfish = UCIEngine([sys.executable, sunfish_path], "Sunfish")
             self.engine_sunfish.send("uci")
             self.engine_sunfish.send("isready")
+            
+            self.status_label.config(text="Khởi động Antares...", fg="orange")
+            self.root.update_idletasks()
+            self.engine_antares = UCIEngine([sys.executable, antares_path], "Antares")
+            self.engine_antares.send("uci")
+            self.engine_antares.send("isready")
             
             self.root.after(100, self.process_engine_queues)
         except Exception as e:
@@ -149,6 +163,16 @@ class ChessGUI:
                     print(f"< [Sunfish] {msg}")
                     if msg.startswith("bestmove"):
                         self.handle_bestmove(msg, self.engine_sunfish)
+            except queue.Empty:
+                pass
+                
+        if self.engine_antares:
+            try:
+                while True:
+                    msg = self.engine_antares.queue.get_nowait()
+                    print(f"< [Antares] {msg}")
+                    if msg.startswith("bestmove"):
+                        self.handle_bestmove(msg, self.engine_antares)
             except queue.Empty:
                 pass
                 
@@ -182,7 +206,7 @@ class ChessGUI:
         
         if self.board.is_game_over():
             self.show_game_over()
-        elif self.game_mode == "RISTA_VS_SUNFISH":
+        elif self.game_mode in ["RISTA_VS_SUNFISH", "RISTA_VS_ANTARES"]:
             self.root.after(500, self.trigger_next_engine)
             
     def trigger_next_engine(self):
@@ -308,10 +332,16 @@ class ChessGUI:
                 self.engine_rista.send(f"position startpos moves {moves_str}")
                 self.engine_rista.send("go depth 6")
             else:
-                self.status_label.config(text="Sunfish is thinking...", fg="red")
-                self.root.update_idletasks()
-                self.engine_sunfish.send(f"position startpos moves {moves_str}")
-                self.engine_sunfish.send("go wtime 30000 btime 30000 winc 0 binc 0")
+                if self.game_mode == "RISTA_VS_SUNFISH":
+                    self.status_label.config(text="Sunfish is thinking...", fg="red")
+                    self.root.update_idletasks()
+                    self.engine_sunfish.send(f"position startpos moves {moves_str}")
+                    self.engine_sunfish.send("go wtime 30000 btime 30000 winc 0 binc 0")
+                elif self.game_mode == "RISTA_VS_ANTARES":
+                    self.status_label.config(text="Antares is thinking...", fg="red")
+                    self.root.update_idletasks()
+                    self.engine_antares.send(f"position startpos moves {moves_str}")
+                    self.engine_antares.send("go depth 6")
 
     def make_engine_move(self, uci_move):
         try:
@@ -363,12 +393,12 @@ class ChessGUI:
         if self.engine_sunfish: self.engine_sunfish.send("ucinewgame")
         self.status_label.config(text="Ready (vs Rista)", fg="blue")
         
-    def start_eve(self):
+    def start_eve(self, mode):
         self.board.reset()
         self.move_history.clear()
         self.selected_sq = None
         self.is_engine_turn = True
-        self.game_mode = "RISTA_VS_SUNFISH"
+        self.game_mode = mode
         
         self.log_text.config(state=tk.NORMAL)
         self.log_text.delete(1.0, tk.END)
@@ -377,7 +407,10 @@ class ChessGUI:
         self.draw_board()
         if self.engine_rista: self.engine_rista.send("ucinewgame")
         if self.engine_sunfish: self.engine_sunfish.send("ucinewgame")
-        self.status_label.config(text="Rista vs Sunfish Starting...", fg="blue")
+        if self.engine_antares: self.engine_antares.send("ucinewgame")
+        
+        name = "Sunfish" if mode == "RISTA_VS_SUNFISH" else "Antares"
+        self.status_label.config(text=f"Rista vs {name} Starting...", fg="blue")
         self.root.after(500, self.trigger_next_engine)
 
     def show_game_over(self):
@@ -389,6 +422,8 @@ class ChessGUI:
             self.engine_rista.quit()
         if self.engine_sunfish:
             self.engine_sunfish.quit()
+        if self.engine_antares:
+            self.engine_antares.quit()
         self.root.destroy()
 
 if __name__ == "__main__":
