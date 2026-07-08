@@ -428,7 +428,7 @@ Move Board::parse_move(const std::string& move_str) {
     // Usually parse_move is just to create a matching 16-bit Move from UCI input.
     if (pieces[to] != EMPTY) flag = FLAG_CAPTURE; // Note: promotion can also be capture, but we only have 2 bits. In our engine, promotion takes precedence.
     if (move_str.length() == 5) flag = FLAG_PROMOTION;
-    else if (flag != FLAG_CASTLING && (pieces[to] != EMPTY || to == en_passant)) flag = FLAG_CAPTURE;
+    else if (flag != FLAG_CASTLING && pieces[to] != EMPTY) flag = FLAG_CAPTURE;
     
     return encode_move(from, to, flag);
 }
