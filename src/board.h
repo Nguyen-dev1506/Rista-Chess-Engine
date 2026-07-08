@@ -15,8 +15,9 @@ public:
     uint64_t hash_key;
     
     // PST Evaluation
-    int material_score;
-    int pst_score;
+    int mg_score[2];
+    int eg_score[2];
+    int game_phase;
     
     // History
     std::vector<UndoMove> history;

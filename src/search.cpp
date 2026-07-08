@@ -1,4 +1,5 @@
 #include "search.h"
+#include "eval.h"
 #include "tt.h"
 #include "zobrist.h"
 #include <algorithm>
@@ -12,10 +13,7 @@ const int MAX_DEPTH = 64;
 Move killer_moves[MAX_DEPTH][2];
 int history_moves[13][120];
 
-int evaluate(Board& board) {
-    int score = board.material_score + board.pst_score;
-    return (board.side == WHITE) ? score : -score;
-}
+
 
 int move_score(Board& board, Move m, int ply, Move hash_move) {
     if (m == hash_move) return 100000;
