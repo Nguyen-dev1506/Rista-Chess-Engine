@@ -390,7 +390,7 @@ class Searcher:
             self.history = history
             self.tp_score.clear()
         
-        self.use_classical = use_classical
+        self.use_classical = use_classical or (interpreter is None)
         global OPENING_BOOK
         
         if OPENING_BOOK:
