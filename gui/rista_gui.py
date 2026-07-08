@@ -70,7 +70,7 @@ class ChessGUI:
         
         self.engine_rista = None
         self.engine_sunfish = None
-        self.engine_antares = None
+        self.engine_numbfish = None
         
         self.game_mode = "USER_VS_RISTA"
         self.is_engine_turn = False
@@ -110,7 +110,7 @@ class ChessGUI:
         self.eve_btn = tk.Button(right_panel, text="Rista vs Sunfish", command=lambda: self.start_eve("RISTA_VS_SUNFISH"))
         self.eve_btn.pack(fill=tk.X, pady=(5, 5))
         
-        self.eve2_btn = tk.Button(right_panel, text="Rista vs Antares", command=lambda: self.start_eve("RISTA_VS_ANTARES"))
+        self.eve2_btn = tk.Button(right_panel, text="Rista vs Numbfish", command=lambda: self.start_eve("RISTA_VS_NUMBFISH"))
         self.eve2_btn.pack(fill=tk.X, pady=(5, 5))
         
         # Status Label
@@ -125,7 +125,7 @@ class ChessGUI:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         rista_path = os.path.join(script_dir, "..", "rista")
         sunfish_path = os.path.join(script_dir, "sunfish.py")
-        antares_path = os.path.join(script_dir, "..", "Antares-master", "main.py")
+        numbfish_path = os.path.join(script_dir, "..", "numbfish-main", "uci.py")
         try:
             self.engine_rista = UCIEngine([rista_path], "Rista")
             self.engine_rista.send("uci")
@@ -135,11 +135,11 @@ class ChessGUI:
             self.engine_sunfish.send("uci")
             self.engine_sunfish.send("isready")
             
-            self.status_label.config(text="Khởi động Antares...", fg="orange")
+            self.status_label.config(text="Khởi động Numbfish...", fg="orange")
             self.root.update_idletasks()
-            self.engine_antares = UCIEngine([sys.executable, "-u", antares_path], "Antares")
-            self.engine_antares.send("uci")
-            self.engine_antares.send("isready")
+            self.engine_numbfish = UCIEngine([sys.executable, "-u", numbfish_path], "Numbfish")
+            self.engine_numbfish.send("uci")
+            self.engine_numbfish.send("isready")
             
             self.root.after(100, self.process_engine_queues)
         except Exception as e:
@@ -166,13 +166,13 @@ class ChessGUI:
             except queue.Empty:
                 pass
                 
-        if self.engine_antares:
+        if self.engine_numbfish:
             try:
                 while True:
-                    msg = self.engine_antares.queue.get_nowait()
-                    print(f"< [Antares] {msg}")
+                    msg = self.engine_numbfish.queue.get_nowait()
+                    print(f"< [Numbfish] {msg}")
                     if msg.startswith("bestmove"):
-                        self.handle_bestmove(msg, self.engine_antares)
+                        self.handle_bestmove(msg, self.engine_numbfish)
             except queue.Empty:
                 pass
                 
@@ -206,7 +206,7 @@ class ChessGUI:
         
         if self.board.is_game_over():
             self.show_game_over()
-        elif self.game_mode in ["RISTA_VS_SUNFISH", "RISTA_VS_ANTARES"]:
+        elif self.game_mode in ["RISTA_VS_SUNFISH", "RISTA_VS_NUMBFISH"]:
             self.root.after(500, self.trigger_next_engine)
             
     def trigger_next_engine(self):
@@ -337,11 +337,11 @@ class ChessGUI:
                     self.root.update_idletasks()
                     self.engine_sunfish.send(f"position startpos moves {moves_str}")
                     self.engine_sunfish.send("go wtime 30000 btime 30000 winc 0 binc 0")
-                elif self.game_mode == "RISTA_VS_ANTARES":
-                    self.status_label.config(text="Antares is thinking...", fg="red")
+                elif self.game_mode == "RISTA_VS_NUMBFISH":
+                    self.status_label.config(text="Numbfish is thinking...", fg="red")
                     self.root.update_idletasks()
-                    self.engine_antares.send(f"position startpos moves {moves_str}")
-                    self.engine_antares.send("go depth 6")
+                    self.engine_numbfish.send(f"position startpos moves {moves_str}")
+                    self.engine_numbfish.send("go depth 6")
 
     def make_engine_move(self, uci_move):
         try:
@@ -407,9 +407,9 @@ class ChessGUI:
         self.draw_board()
         if self.engine_rista: self.engine_rista.send("ucinewgame")
         if self.engine_sunfish: self.engine_sunfish.send("ucinewgame")
-        if self.engine_antares: self.engine_antares.send("ucinewgame")
+        if self.engine_numbfish: self.engine_numbfish.send("ucinewgame")
         
-        name = "Sunfish" if mode == "RISTA_VS_SUNFISH" else "Antares"
+        name = "Sunfish" if mode == "RISTA_VS_SUNFISH" else "Numbfish"
         self.status_label.config(text=f"Rista vs {name} Starting...", fg="blue")
         self.root.after(500, self.trigger_next_engine)
 
@@ -422,8 +422,8 @@ class ChessGUI:
             self.engine_rista.quit()
         if self.engine_sunfish:
             self.engine_sunfish.quit()
-        if self.engine_antares:
-            self.engine_antares.quit()
+        if self.engine_numbfish:
+            self.engine_numbfish.quit()
         self.root.destroy()
 
 if __name__ == "__main__":
