@@ -82,8 +82,8 @@ class ChessGUI:
         # Setup UI
         self.setup_ui()
         
-        # Start Engine
-        self.start_engine()
+        # Start engine polling loop
+        self.root.after(100, self.process_engine_queues)
         
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -111,6 +111,9 @@ class ChessGUI:
         self.rista_color_var = tk.StringVar(value="White")
         tk.Radiobutton(right_panel, text="White", variable=self.rista_color_var, value="White").pack(anchor=tk.W)
         tk.Radiobutton(right_panel, text="Black", variable=self.rista_color_var, value="Black").pack(anchor=tk.W)
+        
+        self.flip_board_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(right_panel, text="Flip Board", variable=self.flip_board_var, command=self.draw_board).pack(anchor=tk.W, pady=(5,0))
         
         tk.Label(right_panel, text="Game Modes").pack(anchor=tk.W, pady=(10,0))
         self.new_game_btn = tk.Button(right_panel, text="User vs Rista", command=self.start_user_mode)
@@ -141,47 +144,53 @@ class ChessGUI:
         LogViewer(self.root)
 
 
-    def start_engine(self):
+    def quit_all_engines(self):
+        for attr in ['engine_rista', 'engine_sunfish', 'engine_numbfish', 'engine_vice', 'engine_fruit']:
+            engine = getattr(self, attr, None)
+            if engine:
+                engine.quit()
+                setattr(self, attr, None)
+
+    def setup_engines_for_match(self, opponent=None):
+        self.quit_all_engines()
         import os, sys
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        rista_path = os.path.join(script_dir, "..", "rista")
-        sunfish_path = os.path.join(script_dir, "sunfish.py")
-        numbfish_path = os.path.join(script_dir, "..", "numbfish-main", "uci.py")
-        vice_path = os.path.join(script_dir, "..", "vice-main", "Vice11", "src", "vice12_smp")
-        fruit_path = os.path.join(script_dir, "..", "Fruit-2.1-master", "src", "fruit")
+        
         try:
+            # Always start Rista
+            rista_path = os.path.join(script_dir, "..", "rista")
             self.engine_rista = UCIEngine([rista_path], "Rista")
             self.engine_rista.send("uci")
             self.engine_rista.send("isready")
             
-            self.engine_sunfish = UCIEngine([sys.executable, "-u", sunfish_path], "Sunfish")
-            self.engine_sunfish.send("uci")
-            self.engine_sunfish.send("isready")
-            
-            self.status_label.config(text="Khởi động Numbfish...", fg="orange")
-            self.root.update_idletasks()
-            self.engine_numbfish = UCIEngine([sys.executable, "-u", numbfish_path], "Numbfish")
-            self.engine_numbfish.send("uci")
-            self.engine_numbfish.send("isready")
-            
-            self.status_label.config(text="Khởi động Vice...", fg="orange")
-            self.root.update_idletasks()
-            self.engine_vice = UCIEngine([vice_path], "Vice")
-            self.engine_vice.send("uci")
-            self.engine_vice.send("isready")
-            
-            self.engine_fruit = UCIEngine([fruit_path], "Fruit")
-            self.engine_fruit.send("uci")
-            self.engine_fruit.send("isready")
-            
-            self.root.after(100, self.process_engine_queues)
+            if opponent == "Sunfish":
+                sunfish_path = os.path.join(script_dir, "sunfish.py")
+                self.engine_sunfish = UCIEngine([sys.executable, "-u", sunfish_path], "Sunfish")
+                self.engine_sunfish.send("uci")
+                self.engine_sunfish.send("isready")
+            elif opponent == "Numbfish":
+                numbfish_path = os.path.join(script_dir, "..", "numbfish-main", "uci.py")
+                self.engine_numbfish = UCIEngine([sys.executable, "-u", numbfish_path], "Numbfish")
+                self.engine_numbfish.send("uci")
+                self.engine_numbfish.send("isready")
+            elif opponent == "Vice":
+                vice_path = os.path.join(script_dir, "..", "vice-main", "Vice11", "src", "vice12_smp")
+                self.engine_vice = UCIEngine([vice_path], "Vice")
+                self.engine_vice.send("uci")
+                self.engine_vice.send("isready")
+            elif opponent == "Fruit":
+                fruit_path = os.path.join(script_dir, "..", "Fruit-2.1-master", "src", "fruit")
+                self.engine_fruit = UCIEngine([fruit_path], "Fruit")
+                self.engine_fruit.send("uci")
+                self.engine_fruit.send("isready")
+                
         except Exception as e:
             messagebox.showerror("Engine Error", f"Failed to start engines: {e}")
 
     def process_engine_queues(self):
         if self.engine_rista:
             try:
-                while True:
+                while self.engine_rista:
                     msg = self.engine_rista.queue.get_nowait()
                     print(f"< [Rista] {msg}")
                     if msg.startswith("bestmove"):
@@ -191,7 +200,7 @@ class ChessGUI:
                 
         if self.engine_sunfish:
             try:
-                while True:
+                while self.engine_sunfish:
                     msg = self.engine_sunfish.queue.get_nowait()
                     print(f"< [Sunfish] {msg}")
                     if msg.startswith("bestmove"):
@@ -201,7 +210,7 @@ class ChessGUI:
                 
         if self.engine_numbfish:
             try:
-                while True:
+                while self.engine_numbfish:
                     msg = self.engine_numbfish.queue.get_nowait()
                     print(f"< [Numbfish] {msg}")
                     if msg.startswith("bestmove"):
@@ -211,7 +220,7 @@ class ChessGUI:
                 
         if self.engine_vice:
             try:
-                while True:
+                while self.engine_vice:
                     msg = self.engine_vice.queue.get_nowait()
                     print(f"< [Vice] {msg}")
                     if msg.startswith("bestmove"):
@@ -221,7 +230,7 @@ class ChessGUI:
                 
         if self.engine_fruit:
             try:
-                while True:
+                while self.engine_fruit:
                     msg = self.engine_fruit.queue.get_nowait()
                     print(f"< [Fruit] {msg}")
                     if msg.startswith("bestmove"):
@@ -272,11 +281,15 @@ class ChessGUI:
 
     def draw_board(self):
         self.canvas.delete("all")
+        flip = hasattr(self, 'flip_board_var') and self.flip_board_var.get()
         
         for rank in range(8):
             for file in range(8):
-                x1 = file * CELL_SIZE
-                y1 = (7 - rank) * CELL_SIZE
+                draw_file = 7 - file if flip else file
+                draw_rank = 7 - rank if flip else rank
+                
+                x1 = draw_file * CELL_SIZE
+                y1 = (7 - draw_rank) * CELL_SIZE
                 x2 = x1 + CELL_SIZE
                 y2 = y1 + CELL_SIZE
                 
@@ -325,6 +338,11 @@ class ChessGUI:
             
         file = event.x // CELL_SIZE
         rank = 7 - (event.y // CELL_SIZE)
+        
+        flip = hasattr(self, 'flip_board_var') and self.flip_board_var.get()
+        if flip:
+            file = 7 - file
+            rank = 7 - rank
         
         if file < 0 or file > 7 or rank < 0 or rank > 7:
             return
@@ -385,7 +403,7 @@ class ChessGUI:
         
         if current_player == "Rista":
             self.engine_rista.send(f"position startpos moves {moves_str}")
-            self.engine_rista.send("go depth 8")
+            self.engine_rista.send("go movetime 1000")
         elif current_player == "Sunfish":
             self.engine_sunfish.send(f"position startpos moves {moves_str}")
             self.engine_sunfish.send("go wtime 30000 btime 30000 winc 0 binc 0")
@@ -434,9 +452,17 @@ class ChessGUI:
         self.log_text.config(state=tk.DISABLED)
 
     def start_user_mode(self):
+        self.status_label.config(text="Khởi động engine...", fg="orange")
+        self.root.update_idletasks()
+        self.setup_engines_for_match(None)
+
         is_white = (self.rista_color_var.get() == "White")
         white = "Rista" if is_white else "User"
         black = "User" if is_white else "Rista"
+        
+        # Auto-flip if User is Black
+        self.flip_board_var.set(not is_white)
+        
         self.new_game(white, black)
 
     def new_game(self, white, black):
@@ -465,9 +491,16 @@ class ChessGUI:
             self.request_engine_move()
         
     def start_eve(self, opponent):
+        self.status_label.config(text=f"Khởi động {opponent}...", fg="orange")
+        self.root.update_idletasks()
+        self.setup_engines_for_match(opponent)
+
         is_white = (self.rista_color_var.get() == "White")
         white = "Rista" if is_white else opponent
         black = opponent if is_white else "Rista"
+        
+        # Auto-flip if Rista is Black
+        self.flip_board_var.set(not is_white)
         
         import random
         self.board.reset()
@@ -527,19 +560,12 @@ class ChessGUI:
             msg = f"Đen ({winner}) THẮNG!"
         else:
             msg = "HÒA (Draw)!"
+            
+        self.quit_all_engines()
         messagebox.showinfo("Game Over", f"Trận đấu kết thúc!\nKết quả: {result}\n\n{msg}")
 
     def on_close(self):
-        if self.engine_rista:
-            self.engine_rista.quit()
-        if self.engine_sunfish:
-            self.engine_sunfish.quit()
-        if self.engine_numbfish:
-            self.engine_numbfish.quit()
-        if self.engine_vice:
-            self.engine_vice.quit()
-        if self.engine_fruit:
-            self.engine_fruit.quit()
+        self.quit_all_engines()
         self.root.destroy()
 
 class LogViewer:
