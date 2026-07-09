@@ -11,6 +11,7 @@ namespace Search {
     extern int max_time_ms;
 
     void start_search(Board& board, int depth_limit, int time_limit_ms);
+    uint64_t perft(Board& board, int depth);
 }
 
 #endif

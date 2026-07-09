@@ -23,7 +23,7 @@ void TranspositionTable::clear() {
     current_age = 0;
 }
 
-bool TranspositionTable::probe(U64 key, int depth, int alpha, int beta, int& score, uint16_t& best_move) {
+bool TranspositionTable::probe(U64 key, int depth, int alpha, int beta, int& score, uint16_t& best_move, int ply) {
     if (table.empty()) return false;
     TTEntry& entry = table[key % table.size()];
     
@@ -31,16 +31,20 @@ bool TranspositionTable::probe(U64 key, int depth, int alpha, int beta, int& sco
         best_move = entry.best_move;
         if (entry.depth >= depth) {
             TTFlag flag = static_cast<TTFlag>(entry.flag_age & 3);
+            int tt_score = entry.score;
+            if (tt_score >= 48900) tt_score -= ply;
+            else if (tt_score <= -48900) tt_score += ply;
+            
             if (flag == TT_EXACT) {
-                score = entry.score;
+                score = tt_score;
                 return true;
             }
-            if (flag == TT_ALPHA && entry.score <= alpha) {
-                score = entry.score;
+            if (flag == TT_ALPHA && tt_score <= alpha) {
+                score = tt_score;
                 return true;
             }
-            if (flag == TT_BETA && entry.score >= beta) {
-                score = entry.score;
+            if (flag == TT_BETA && tt_score >= beta) {
+                score = tt_score;
                 return true;
             }
         }

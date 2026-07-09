@@ -84,20 +84,39 @@ namespace UCI {
                     }
                 }
             } else if (token == "go") {
-                int depth = 6;
+                int depth = 64;
                 int time = 0;
+                int wtime = 0, btime = 0, winc = 0, binc = 0, movestogo = 0;
+                bool has_movetime = false;
                 while (iss >> token) {
                     if (token == "depth") iss >> depth;
-                    if (token == "wtime" && board.side_to_move == WHITE) iss >> time;
-                    if (token == "btime" && board.side_to_move == BLACK) iss >> time;
-                    if (token == "movetime") { iss >> time; }
+                    if (token == "wtime") iss >> wtime;
+                    if (token == "btime") iss >> btime;
+                    if (token == "winc") iss >> winc;
+                    if (token == "binc") iss >> binc;
+                    if (token == "movestogo") iss >> movestogo;
+                    if (token == "movetime") { iss >> time; has_movetime = true; }
                 }
-                if (time > 0) {
-                    time = time / 30; // very simple time management
-                    if (time < 100) time = 100;
-                    depth = 64; // Let time control
+                if (!has_movetime) {
+                    int my_time = (board.side_to_move == WHITE) ? wtime : btime;
+                    int my_inc  = (board.side_to_move == WHITE) ? winc  : binc;
+                    if (my_time > 0) {
+                        int moves_left = (movestogo > 0) ? movestogo : 30;
+                        time = my_time / moves_left + (my_inc * 3 / 4);
+                        time = std::min(time, my_time - 50); // chừa buffer an toàn tránh timeout
+                        if (time < 50) time = 50;
+                    }
                 }
                 Search::start_search(board, depth, time);
+            } else if (token == "perft") {
+                int depth = 5;
+                if (iss >> token) depth = std::stoi(token);
+                auto start = std::chrono::steady_clock::now();
+                uint64_t nodes = Search::perft(board, depth);
+                auto end = std::chrono::steady_clock::now();
+                std::chrono::duration<double> elapsed = end - start;
+                std::cout << "Depth " << depth << ": " << nodes << " nodes, "
+                          << elapsed.count() << " seconds\n";
             } else if (token == "d") {
                 board.print();
             } else if (token == "quit") {

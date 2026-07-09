@@ -1,6 +1,8 @@
-*.o
+Fruit-2.1-master/
+numbfish-main/
+vice-main/
 build/
+*.bin
+*.exe
 __pycache__/
-*.log
-.DS_Store
-rista
+*.pyc

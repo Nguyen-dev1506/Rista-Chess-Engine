@@ -26,7 +26,7 @@ public:
     void clear();
     void new_search() { current_age = (current_age + 1) & 63; }
     
-    bool probe(U64 key, int depth, int alpha, int beta, int& score, uint16_t& best_move);
+    bool probe(U64 key, int depth, int alpha, int beta, int& score, uint16_t& best_move, int ply);
     void store(U64 key, int depth, int score, TTFlag flag, uint16_t best_move);
     uint16_t probe_move(U64 key);
 

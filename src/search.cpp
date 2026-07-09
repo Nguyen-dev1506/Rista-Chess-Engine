@@ -20,6 +20,12 @@ namespace Search {
     const int INF = 50000;
     const int MATE = 49000;
 
+    inline int score_to_tt(int score, int ply) {
+        if (score >= MATE - 100) return score + ply;
+        if (score <= -MATE + 100) return score - ply;
+        return score;
+    }
+
     void check_time() {
         if (max_time_ms > 0 && (nodes & 2047) == 0) {
             auto now = std::chrono::steady_clock::now();
@@ -157,35 +163,45 @@ namespace Search {
         }
     }
 
-    int quiescence(Board& board, int alpha, int beta) {
+    int quiescence(Board& board, int alpha, int beta, int ply) {
         check_time();
         if (time_over) return 0;
         nodes++;
 
-        int stand_pat = Eval::evaluate(board);
-        if (stand_pat >= beta) return beta;
-        if (alpha < stand_pat) alpha = stand_pat;
+        bool in_check = board.is_in_check(board.side_to_move);
+        int stand_pat = 0;
+        if (!in_check) {
+            stand_pat = Eval::evaluate(board);
+            if (stand_pat >= beta) return beta;
+            if (alpha < stand_pat) alpha = stand_pat;
+        }
 
         MoveList list;
-        MoveGen::generate_pseudo_legal(board, list, true);
-        sort_moves(board, list, 0, 0);
+        MoveGen::generate_pseudo_legal(board, list, in_check ? false : true);
+        sort_moves(board, list, 0, ply);
 
+        int legal_moves = 0;
         for (int i = 0; i < list.count; i++) {
             Move m = list.moves[i];
             
-            if (see(board, m) < 0) continue;
+            bool is_capture = (m.flags() == CAPTURE || m.flags() == EP_CAPTURE || m.flags() >= N_PROMO_CAP);
+            if (!in_check && is_capture && see(board, m) < 0) continue;
 
             board.make_move(m);
             if (board.is_in_check((board.side_to_move == WHITE) ? BLACK : WHITE)) { 
                 board.unmake_move(m);
                 continue;
             }
-            int score = -quiescence(board, -beta, -alpha);
+            legal_moves++;
+            int score = -quiescence(board, -beta, -alpha, ply + 1);
             board.unmake_move(m);
 
             if (score >= beta) return beta;
             if (score > alpha) alpha = score;
         }
+        
+        if (in_check && legal_moves == 0) return -MATE + ply;
+        
         return alpha;
     }
 
@@ -199,12 +215,12 @@ namespace Search {
         
         uint16_t tt_move = 0;
         int tt_score = 0;
-        if (TT.probe(board.hash_key, depth, alpha, beta, tt_score, tt_move)) {
+        if (TT.probe(board.hash_key, depth, alpha, beta, tt_score, tt_move, ply)) {
             return tt_score;
         }
 
         if (depth <= 0) {
-            return quiescence(board, alpha, beta);
+            return quiescence(board, alpha, beta, ply);
         }
 
         nodes++;
@@ -341,7 +357,7 @@ namespace Search {
         if (best_score <= original_alpha) flag = TT_ALPHA;
         else if (best_score >= beta) flag = TT_BETA;
         
-        TT.store(board.hash_key, depth, best_score, flag, best_move);
+        TT.store(board.hash_key, depth, score_to_tt(best_score, ply), flag, best_move);
 
         return best_score;
     }
@@ -399,8 +415,15 @@ namespace Search {
                 best_move = tt_move;
             }
             
-            std::cout << "info depth " << d << " score cp " << best_score 
-                      << " nodes " << nodes << " pv ";
+            std::cout << "info depth " << d << " ";
+            if (best_score >= MATE - 100) {
+                std::cout << "score mate " << (MATE - best_score + 1) / 2;
+            } else if (best_score <= -MATE + 100) {
+                std::cout << "score mate " << (-MATE - best_score) / 2;
+            } else {
+                std::cout << "score cp " << best_score;
+            }
+            std::cout << " nodes " << nodes << " pv ";
             
             Board temp = board;
             for (int p = 0; p < d; p++) {
@@ -453,5 +476,23 @@ namespace Search {
             if (m.flags() == N_PROMO || m.flags() == N_PROMO_CAP) std::cout << 'n';
         }
         std::cout << "\n";
+    }
+
+    uint64_t perft(Board& board, int depth) {
+        if (depth == 0) return 1ULL;
+        
+        MoveList list;
+        MoveGen::generate_pseudo_legal(board, list, false);
+        
+        uint64_t nodes = 0;
+        for (int i = 0; i < list.count; i++) {
+            Move m = list.moves[i];
+            board.make_move(m);
+            if (!board.is_in_check((board.side_to_move == WHITE) ? BLACK : WHITE)) {
+                nodes += perft(board, depth - 1);
+            }
+            board.unmake_move(m);
+        }
+        return nodes;
     }
 }
