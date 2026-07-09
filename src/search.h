@@ -2,12 +2,15 @@
 #define SEARCH_H
 
 #include "board.h"
-#include "movegen.h"
+#include <chrono>
 
-// Returns the best move found within the given depth
-Move search(Board& board, int depth);
+namespace Search {
+    extern uint64_t nodes;
+    extern bool time_over;
+    extern std::chrono::time_point<std::chrono::steady_clock> start_time;
+    extern int max_time_ms;
 
-// Evaluates the current board state
-int evaluate(Board& board);
+    void start_search(Board& board, int depth_limit, int time_limit_ms);
+}
 
 #endif

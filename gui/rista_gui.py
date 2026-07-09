@@ -5,6 +5,7 @@ import threading
 import queue
 import chess
 import time
+import re
 
 # UI Constants
 CELL_SIZE = 60
@@ -71,6 +72,8 @@ class ChessGUI:
         self.engine_rista = None
         self.engine_sunfish = None
         self.engine_numbfish = None
+        self.engine_vice = None
+        self.engine_fruit = None
         
         self.game_mode = "USER_VS_RISTA"
         self.is_engine_turn = False
@@ -104,20 +107,38 @@ class ChessGUI:
         self.log_text.pack(fill=tk.Y, pady=(0, 10))
         
         # Controls
-        self.new_game_btn = tk.Button(right_panel, text="Play as White vs Rista", command=self.new_game)
-        self.new_game_btn.pack(fill=tk.X, pady=(10, 5))
+        tk.Label(right_panel, text="Rista Color").pack(anchor=tk.W, pady=(5,0))
+        self.rista_color_var = tk.StringVar(value="White")
+        tk.Radiobutton(right_panel, text="White", variable=self.rista_color_var, value="White").pack(anchor=tk.W)
+        tk.Radiobutton(right_panel, text="Black", variable=self.rista_color_var, value="Black").pack(anchor=tk.W)
         
-        self.eve_btn = tk.Button(right_panel, text="Rista vs Sunfish", command=lambda: self.start_eve("RISTA_VS_SUNFISH"))
-        self.eve_btn.pack(fill=tk.X, pady=(5, 5))
+        tk.Label(right_panel, text="Game Modes").pack(anchor=tk.W, pady=(10,0))
+        self.new_game_btn = tk.Button(right_panel, text="User vs Rista", command=self.start_user_mode)
+        self.new_game_btn.pack(fill=tk.X, pady=2)
         
-        self.eve2_btn = tk.Button(right_panel, text="Rista vs Numbfish", command=lambda: self.start_eve("RISTA_VS_NUMBFISH"))
-        self.eve2_btn.pack(fill=tk.X, pady=(5, 5))
+        self.eve_btn = tk.Button(right_panel, text="Rista vs Sunfish", command=lambda: self.start_eve("Sunfish"))
+        self.eve_btn.pack(fill=tk.X, pady=2)
+        
+        self.eve2_btn = tk.Button(right_panel, text="Rista vs Numbfish", command=lambda: self.start_eve("Numbfish"))
+        self.eve2_btn.pack(fill=tk.X, pady=2)
+        
+        self.eve3_btn = tk.Button(right_panel, text="Rista vs Vice", command=lambda: self.start_eve("Vice"))
+        self.eve3_btn.pack(fill=tk.X, pady=2)
+        
+        self.eve4_btn = tk.Button(right_panel, text="Rista vs Fruit", command=lambda: self.start_eve("Fruit"))
+        self.eve4_btn.pack(fill=tk.X, pady=2)
+        
+        self.log_btn = tk.Button(right_panel, text="Load Game Log", command=self.open_log_viewer)
+        self.log_btn.pack(fill=tk.X, pady=(10, 2))
         
         # Status Label
         self.status_label = tk.Label(right_panel, text="Ready", fg="blue", font=("Arial", 12, "bold"))
         self.status_label.pack(fill=tk.X, pady=5)
         
         self.draw_board()
+
+    def open_log_viewer(self):
+        LogViewer(self.root)
 
 
     def start_engine(self):
@@ -126,6 +147,8 @@ class ChessGUI:
         rista_path = os.path.join(script_dir, "..", "rista")
         sunfish_path = os.path.join(script_dir, "sunfish.py")
         numbfish_path = os.path.join(script_dir, "..", "numbfish-main", "uci.py")
+        vice_path = os.path.join(script_dir, "..", "vice-main", "Vice11", "src", "vice12_smp")
+        fruit_path = os.path.join(script_dir, "..", "Fruit-2.1-master", "src", "fruit")
         try:
             self.engine_rista = UCIEngine([rista_path], "Rista")
             self.engine_rista.send("uci")
@@ -140,6 +163,16 @@ class ChessGUI:
             self.engine_numbfish = UCIEngine([sys.executable, "-u", numbfish_path], "Numbfish")
             self.engine_numbfish.send("uci")
             self.engine_numbfish.send("isready")
+            
+            self.status_label.config(text="Khởi động Vice...", fg="orange")
+            self.root.update_idletasks()
+            self.engine_vice = UCIEngine([vice_path], "Vice")
+            self.engine_vice.send("uci")
+            self.engine_vice.send("isready")
+            
+            self.engine_fruit = UCIEngine([fruit_path], "Fruit")
+            self.engine_fruit.send("uci")
+            self.engine_fruit.send("isready")
             
             self.root.after(100, self.process_engine_queues)
         except Exception as e:
@@ -176,6 +209,26 @@ class ChessGUI:
             except queue.Empty:
                 pass
                 
+        if self.engine_vice:
+            try:
+                while True:
+                    msg = self.engine_vice.queue.get_nowait()
+                    print(f"< [Vice] {msg}")
+                    if msg.startswith("bestmove"):
+                        self.handle_bestmove(msg, self.engine_vice)
+            except queue.Empty:
+                pass
+                
+        if self.engine_fruit:
+            try:
+                while True:
+                    msg = self.engine_fruit.queue.get_nowait()
+                    print(f"< [Fruit] {msg}")
+                    if msg.startswith("bestmove"):
+                        self.handle_bestmove(msg, self.engine_fruit)
+            except queue.Empty:
+                pass
+                
         self.root.after(100, self.process_engine_queues)
 
     def handle_bestmove(self, msg, engine):
@@ -206,8 +259,11 @@ class ChessGUI:
         
         if self.board.is_game_over():
             self.show_game_over()
-        elif self.game_mode in ["RISTA_VS_SUNFISH", "RISTA_VS_NUMBFISH"]:
-            self.root.after(500, self.trigger_next_engine)
+        elif hasattr(self, 'white_player') and hasattr(self, 'black_player'):
+            # Trigger next engine if it's an engine's turn
+            current_player = self.white_player if self.board.turn == chess.WHITE else self.black_player
+            if current_player != "User":
+                self.root.after(500, self.trigger_next_engine)
             
     def trigger_next_engine(self):
         if self.board.is_game_over(): return
@@ -317,31 +373,31 @@ class ChessGUI:
 
     def request_engine_move(self):
         moves_str = " ".join(self.move_history)
+        current_player = self.white_player if self.board.turn == chess.WHITE else self.black_player
         
-        if self.game_mode == "USER_VS_RISTA":
-            # Rista plays Black
-            self.status_label.config(text="Rista is thinking...", fg="red")
-            self.root.update_idletasks()
+        if current_player == "User":
+            self.is_engine_turn = False
+            self.status_label.config(text="Your turn", fg="green")
+            return
+            
+        self.status_label.config(text=f"{current_player} is thinking...", fg="red")
+        self.root.update_idletasks()
+        
+        if current_player == "Rista":
             self.engine_rista.send(f"position startpos moves {moves_str}")
-            self.engine_rista.send("go depth 6")
-        else:
-            # Eve mode
-            if self.board.turn == chess.WHITE:
-                self.status_label.config(text="Rista is thinking...", fg="red")
-                self.root.update_idletasks()
-                self.engine_rista.send(f"position startpos moves {moves_str}")
-                self.engine_rista.send("go depth 6")
-            else:
-                if self.game_mode == "RISTA_VS_SUNFISH":
-                    self.status_label.config(text="Sunfish is thinking...", fg="red")
-                    self.root.update_idletasks()
-                    self.engine_sunfish.send(f"position startpos moves {moves_str}")
-                    self.engine_sunfish.send("go wtime 30000 btime 30000 winc 0 binc 0")
-                elif self.game_mode == "RISTA_VS_NUMBFISH":
-                    self.status_label.config(text="Numbfish is thinking...", fg="red")
-                    self.root.update_idletasks()
-                    self.engine_numbfish.send(f"position startpos moves {moves_str}")
-                    self.engine_numbfish.send("go depth 6")
+            self.engine_rista.send("go depth 8")
+        elif current_player == "Sunfish":
+            self.engine_sunfish.send(f"position startpos moves {moves_str}")
+            self.engine_sunfish.send("go wtime 30000 btime 30000 winc 0 binc 0")
+        elif current_player == "Numbfish":
+            self.engine_numbfish.send(f"position startpos moves {moves_str}")
+            self.engine_numbfish.send("go depth 6")
+        elif current_player == "Vice":
+            self.engine_vice.send(f"position startpos moves {moves_str}")
+            self.engine_vice.send("go depth 7")
+        elif current_player == "Fruit":
+            self.engine_fruit.send(f"position startpos moves {moves_str}")
+            self.engine_fruit.send("go depth 7")
 
     def make_engine_move(self, uci_move):
         try:
@@ -377,7 +433,13 @@ class ChessGUI:
         self.log_text.see(tk.END)
         self.log_text.config(state=tk.DISABLED)
 
-    def new_game(self):
+    def start_user_mode(self):
+        is_white = (self.rista_color_var.get() == "White")
+        white = "Rista" if is_white else "User"
+        black = "User" if is_white else "Rista"
+        self.new_game(white, black)
+
+    def new_game(self, white, black):
         self.board.reset()
         self.move_history.clear()
         self.selected_sq = None
@@ -387,35 +449,85 @@ class ChessGUI:
         self.log_text.delete(1.0, tk.END)
         self.log_text.config(state=tk.DISABLED)
         
-        self.game_mode = "USER_VS_RISTA"
-        self.draw_board()
-        if self.engine_rista: self.engine_rista.send("ucinewgame")
-        if self.engine_sunfish: self.engine_sunfish.send("ucinewgame")
-        self.status_label.config(text="Ready (vs Rista)", fg="blue")
-        
-    def start_eve(self, mode):
-        self.board.reset()
-        self.move_history.clear()
-        self.selected_sq = None
-        self.is_engine_turn = True
-        self.game_mode = mode
-        
-        self.log_text.config(state=tk.NORMAL)
-        self.log_text.delete(1.0, tk.END)
-        self.log_text.config(state=tk.DISABLED)
+        self.white_player = white
+        self.black_player = black
         
         self.draw_board()
         if self.engine_rista: self.engine_rista.send("ucinewgame")
         if self.engine_sunfish: self.engine_sunfish.send("ucinewgame")
         if self.engine_numbfish: self.engine_numbfish.send("ucinewgame")
+        if self.engine_vice: self.engine_vice.send("ucinewgame")
+        if self.engine_fruit: self.engine_fruit.send("ucinewgame")
         
-        name = "Sunfish" if mode == "RISTA_VS_SUNFISH" else "Numbfish"
-        self.status_label.config(text=f"Rista vs {name} Starting...", fg="blue")
+        self.status_label.config(text=f"Ready ({white} vs {black})", fg="blue")
+        if white != "User":
+            self.is_engine_turn = True
+            self.request_engine_move()
+        
+    def start_eve(self, opponent):
+        is_white = (self.rista_color_var.get() == "White")
+        white = "Rista" if is_white else opponent
+        black = opponent if is_white else "Rista"
+        
+        import random
+        self.board.reset()
+        self.move_history.clear()
+        
+        self.log_text.config(state=tk.NORMAL)
+        self.log_text.delete(1.0, tk.END)
+        self.log_text.config(state=tk.DISABLED)
+
+        openings = [
+            [],
+            ["e2e4", "e7e5"],
+            ["e2e4", "c7c5"],
+            ["d2d4", "d7d5"],
+            ["d2d4", "g8f6"],
+            ["e2e4", "e7e6"],
+            ["c2c4", "e7e5"],
+            ["g1f3", "d7d5"],
+            ["e2e4", "c7c6"],
+            ["d2d4", "f7f5"],
+            ["b2b3", "e7e5"],
+            ["f2f4", "d7d5"],
+            ["e2e4", "d7d6"],
+            ["e2e4", "g7g6"],
+            ["d2d4", "g8f6", "c2c4", "g7g6"],
+            ["e2e4", "e7e5", "g1f3", "b8c6", "f1c4"],
+            ["d2d4", "d7d5", "c2c4", "c7c6"]
+        ]
+        chosen = random.choice(openings)
+        for m in chosen:
+            move = chess.Move.from_uci(m)
+            self.board.push(move)
+            self.move_history.append(m)
+            self.log_move(m, "Book")
+
+        self.selected_sq = None
+        self.white_player = white
+        self.black_player = black
+        
+        self.draw_board()
+        if self.engine_rista: self.engine_rista.send("ucinewgame")
+        if self.engine_sunfish: self.engine_sunfish.send("ucinewgame")
+        if self.engine_numbfish: self.engine_numbfish.send("ucinewgame")
+        if self.engine_vice: self.engine_vice.send("ucinewgame")
+        
+        self.status_label.config(text=f"{white} vs {black} Starting...", fg="blue")
+        self.is_engine_turn = True
         self.root.after(500, self.trigger_next_engine)
 
     def show_game_over(self):
         result = self.board.result()
-        messagebox.showinfo("Game Over", f"Game Over!\nResult: {result}")
+        if result == "1-0":
+            winner = getattr(self, 'white_player', 'White')
+            msg = f"Trắng ({winner}) THẮNG!"
+        elif result == "0-1":
+            winner = getattr(self, 'black_player', 'Black')
+            msg = f"Đen ({winner}) THẮNG!"
+        else:
+            msg = "HÒA (Draw)!"
+        messagebox.showinfo("Game Over", f"Trận đấu kết thúc!\nKết quả: {result}\n\n{msg}")
 
     def on_close(self):
         if self.engine_rista:
@@ -424,7 +536,124 @@ class ChessGUI:
             self.engine_sunfish.quit()
         if self.engine_numbfish:
             self.engine_numbfish.quit()
+        if self.engine_vice:
+            self.engine_vice.quit()
+        if self.engine_fruit:
+            self.engine_fruit.quit()
         self.root.destroy()
+
+class LogViewer:
+    def __init__(self, parent):
+        self.top = tk.Toplevel(parent)
+        self.top.title("Game Log Viewer")
+        
+        self.board = chess.Board()
+        self.moves = []
+        self.current_ply = 0
+        
+        main_frame = tk.Frame(self.top)
+        main_frame.pack(padx=10, pady=10)
+        
+        left_panel = tk.Frame(main_frame)
+        left_panel.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
+        
+        tk.Label(left_panel, text="Paste Game Log Here:").pack(anchor=tk.W)
+        self.text_area = scrolledtext.ScrolledText(left_panel, width=40, height=15)
+        self.text_area.pack(pady=5)
+        
+        tk.Button(left_panel, text="Parse & Load Moves", command=self.load_moves).pack(fill=tk.X)
+        
+        nav_frame = tk.Frame(left_panel)
+        nav_frame.pack(pady=10)
+        
+        tk.Button(nav_frame, text="|<<", width=4, command=self.go_start).pack(side=tk.LEFT, padx=2)
+        tk.Button(nav_frame, text="<", width=4, command=self.go_prev).pack(side=tk.LEFT, padx=2)
+        tk.Button(nav_frame, text=">", width=4, command=self.go_next).pack(side=tk.LEFT, padx=2)
+        tk.Button(nav_frame, text=">>|", width=4, command=self.go_end).pack(side=tk.LEFT, padx=2)
+        
+        self.status_lbl = tk.Label(left_panel, text="Ready")
+        self.status_lbl.pack(pady=5)
+        
+        self.canvas = tk.Canvas(main_frame, width=BOARD_SIZE, height=BOARD_SIZE)
+        self.canvas.pack(side=tk.LEFT)
+        
+        self.draw_board()
+        
+    def load_moves(self):
+        text = self.text_area.get(1.0, tk.END)
+        tokens = re.findall(r'\b[a-h][1-8][a-h][1-8][qrbn]?\b', text)
+        
+        self.board.reset()
+        self.moves = []
+        self.current_ply = 0
+        
+        valid_count = 0
+        for token in tokens:
+            try:
+                move = chess.Move.from_uci(token)
+                if move in self.board.legal_moves:
+                    self.board.push(move)
+                    self.moves.append(move)
+                    valid_count += 1
+                else:
+                    break
+            except:
+                pass
+                
+        self.board.reset()
+        self.current_ply = 0
+        self.draw_board()
+        self.status_lbl.config(text=f"Loaded {valid_count} moves.")
+        
+    def go_start(self):
+        while self.current_ply > 0:
+            self.go_prev()
+            
+    def go_end(self):
+        while self.current_ply < len(self.moves):
+            self.go_next()
+            
+    def go_prev(self):
+        if self.current_ply > 0:
+            self.board.pop()
+            self.current_ply -= 1
+            self.draw_board()
+            
+    def go_next(self):
+        if self.current_ply < len(self.moves):
+            self.board.push(self.moves[self.current_ply])
+            self.current_ply += 1
+            self.draw_board()
+            
+    def draw_board(self):
+        self.canvas.delete("all")
+        last_move = None
+        if len(self.board.move_stack) > 0:
+            last_move = self.board.peek()
+            
+        for rank in range(8):
+            for file in range(8):
+                x1 = file * CELL_SIZE
+                y1 = (7 - rank) * CELL_SIZE
+                x2 = x1 + CELL_SIZE
+                y2 = y1 + CELL_SIZE
+                sq = chess.square(file, rank)
+                
+                color = LIGHT_COLOR if (rank + file) % 2 != 0 else DARK_COLOR
+                if last_move and (last_move.from_square == sq or last_move.to_square == sq):
+                    color = MOVE_HIGHLIGHT_COLOR
+                    
+                self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="")
+                
+                piece = self.board.piece_at(sq)
+                if piece:
+                    text_color = "black" if piece.color == chess.BLACK else "white"
+                    symbol = PIECE_UNICODE[piece.symbol()]
+                    if piece.color == chess.WHITE:
+                        self.canvas.create_text(x1 + CELL_SIZE/2, y1 + CELL_SIZE/2, text=symbol, font=("Arial", int(CELL_SIZE * 0.7)), fill="black")
+                        self.canvas.create_text(x1 + CELL_SIZE/2 - 1, y1 + CELL_SIZE/2 - 1, text=symbol, font=("Arial", int(CELL_SIZE * 0.7)), fill="white")
+                    else:
+                        self.canvas.create_text(x1 + CELL_SIZE/2, y1 + CELL_SIZE/2, text=symbol, font=("Arial", int(CELL_SIZE * 0.7)), fill=text_color)
 
 if __name__ == "__main__":
     root = tk.Tk()

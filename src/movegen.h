@@ -8,12 +8,16 @@ struct MoveList {
     Move moves[256];
     int count = 0;
     
-    inline void add(Move m) {
+    void add(Move m) {
         moves[count++] = m;
     }
 };
 
-void generate_moves(Board& board, MoveList& move_list);
-void generate_captures(Board& board, MoveList& move_list);
+namespace MoveGen {
+    void generate_pseudo_legal(const Board& board, MoveList& list, bool captures_only = false);
+    
+    // Legal move checking can be done during search by making pseudo-legal move and checking if king is in check
+    // Alternatively, a strict legal move generator. We'll use the make/in_check/unmake approach for simplicity and speed in Negamax.
+}
 
 #endif

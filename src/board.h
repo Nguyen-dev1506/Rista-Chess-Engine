@@ -2,54 +2,57 @@
 #define BOARD_H
 
 #include "types.h"
-#include <vector>
+#include "zobrist.h"
+#include "bitboard.h"
+#include <array>
 #include <string>
 
 class Board {
 public:
-    int pieces[120];
-    int side;
-    int en_passant;
-    int castling_rights;
-    int fifty_move;
-    uint64_t hash_key;
-    
-    // PST Evaluation
-    int mg_score[2];
-    int eg_score[2];
-    int game_phase;
-    
-    // History
-    std::vector<UndoMove> history;
-    
     Board();
-    
-    void reset();
     void set_fen(const std::string& fen);
-    void print();
+    void print() const;
     
-    bool make_move(Move m);
-    void unmake_move();
+    // Core bitboards
+    std::array<U64, 12> pieces;
+    U64 colors[3]; // WHITE, BLACK, BOTH
     
-    // Convert algebraic to Move
-    Move parse_move(const std::string& move_str);
-    std::string move_to_string(Move m);
+    Color side_to_move;
+    Square en_passant;
+    int castle_rights;
+    int half_moves;
+    int full_moves;
     
-    // Pseudo-legal move check helpers
-    bool is_square_attacked(int sq, int attacker_side);
-    bool is_in_check(int side_to_check);
+    U64 hash_key;
     
-    // Opening Book
-    static std::string get_book_move(const std::string& history);
-    
-    uint64_t generate_pos_key();
-    
-private:
-    void update_pst_score(int piece, int sq, bool is_add);
-};
+    inline U64 occ() const { return colors[BOTH]; }
+    inline U64 occ(Color c) const { return colors[c]; }
+    inline Piece piece_on(Square sq) const {
+        for (int p = 0; p < 12; p++) {
+            if (get_bit(pieces[p], sq)) return static_cast<Piece>(p);
+        }
+        return EMPTY_PIECE;
+    }
 
-// Evaluation functions
-int get_piece_value(int piece);
-int get_pst_value(int piece, int sq);
+    void make_move(Move m);
+    void unmake_move(Move m);
+    
+    struct State {
+        Square ep;
+        int castle;
+        int half_moves;
+        U64 hash;
+        Piece captured;
+    };
+    
+    std::array<State, 1024> state_history;
+    int state_ply;
+    
+    void compute_hash();
+    void update_hash_piece(Piece p, Square sq);
+    
+    bool is_in_check(Color c) const;
+    bool is_attacked(Square sq, Color attacker) const;
+};
 
 #endif

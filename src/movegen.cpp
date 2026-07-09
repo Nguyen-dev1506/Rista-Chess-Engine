@@ -1,291 +1,162 @@
 #include "movegen.h"
-#include <cmath>
+#include "magic.h"
 
-extern const int KNIGHT_OFFSETS[8];
-extern const int BISHOP_OFFSETS[4];
-extern const int ROOK_OFFSETS[4];
-extern const int KING_OFFSETS[8];
-
-void generate_pawn_moves(Board& board, MoveList& move_list, int sq, int side) {
-    bool is_white_turn = (side == WHITE);
-    int dir = is_white_turn ? 10 : -10;
-    int start_rank = is_white_turn ? 3 : 8; 
-    int promo_rank = is_white_turn ? 9 : 2;
-    
-    int to = sq + dir;
-    if (board.pieces[to] == EMPTY) {
-        if (to / 10 == promo_rank) {
-            move_list.add(encode_move(sq, to, FLAG_PROMOTION));
-        } else {
-            move_list.add(encode_move(sq, to, FLAG_NONE));
-            if (sq / 10 == start_rank) {
-                int to2 = to + dir;
-                if (board.pieces[to2] == EMPTY) {
-                    move_list.add(encode_move(sq, to2, FLAG_NONE));
+namespace MoveGen {
+    void generate_pawn_moves(const Board& board, MoveList& list, Color us, bool captures_only) {
+        U64 pawns = board.pieces[us == WHITE ? W_PAWN : B_PAWN];
+        U64 empty = ~board.occ();
+        U64 enemies = board.occ(us == WHITE ? BLACK : WHITE);
+        
+        // Single push
+        U64 push1 = (us == WHITE) ? ((pawns << 8) & empty) : ((pawns >> 8) & empty);
+        U64 push2 = 0;
+        
+        if (!captures_only) {
+            // Double push
+            U64 rank3 = (us == WHITE) ? 0x0000000000FF0000ULL : 0;
+            U64 rank6 = (us == BLACK) ? 0x0000FF0000000000ULL : 0;
+            push2 = (us == WHITE) ? (((push1 & rank3) << 8) & empty) : (((push1 & rank6) >> 8) & empty);
+            
+            U64 p1 = push1, p2 = push2;
+            while (p1) {
+                int to = pop_lsb(p1);
+                int from = (us == WHITE) ? to - 8 : to + 8;
+                if ((us == WHITE && to >= A8) || (us == BLACK && to <= H1)) {
+                    list.add(Move(static_cast<Square>(from), static_cast<Square>(to), Q_PROMO));
+                    list.add(Move(static_cast<Square>(from), static_cast<Square>(to), R_PROMO));
+                    list.add(Move(static_cast<Square>(from), static_cast<Square>(to), B_PROMO));
+                    list.add(Move(static_cast<Square>(from), static_cast<Square>(to), N_PROMO));
+                } else {
+                    list.add(Move(static_cast<Square>(from), static_cast<Square>(to), QUIET));
                 }
             }
+            while (p2) {
+                int to = pop_lsb(p2);
+                int from = (us == WHITE) ? to - 16 : to + 16;
+                list.add(Move(static_cast<Square>(from), static_cast<Square>(to), DOUBLE_PAWN));
+            }
         }
-    }
-    
-    int cap1 = sq + dir - 1;
-    int cap2 = sq + dir + 1;
-    
-    if (board.pieces[cap1] != OFFBOARD) {
-        if (is_white_turn && board.pieces[cap1] < 0) {
-            if (cap1 / 10 == promo_rank) move_list.add(encode_move(sq, cap1, FLAG_PROMOTION));
-            else move_list.add(encode_move(sq, cap1, FLAG_CAPTURE));
-        } else if (!is_white_turn && board.pieces[cap1] > 0) {
-            if (cap1 / 10 == promo_rank) move_list.add(encode_move(sq, cap1, FLAG_PROMOTION));
-            else move_list.add(encode_move(sq, cap1, FLAG_CAPTURE));
-        } else if (cap1 == board.en_passant) {
-            move_list.add(encode_move(sq, cap1, FLAG_NONE));
-        }
-    }
-    
-    if (board.pieces[cap2] != OFFBOARD) {
-        if (is_white_turn && board.pieces[cap2] < 0) {
-            if (cap2 / 10 == promo_rank) move_list.add(encode_move(sq, cap2, FLAG_PROMOTION));
-            else move_list.add(encode_move(sq, cap2, FLAG_CAPTURE));
-        } else if (!is_white_turn && board.pieces[cap2] > 0) {
-            if (cap2 / 10 == promo_rank) move_list.add(encode_move(sq, cap2, FLAG_PROMOTION));
-            else move_list.add(encode_move(sq, cap2, FLAG_CAPTURE));
-        } else if (cap2 == board.en_passant) {
-            move_list.add(encode_move(sq, cap2, FLAG_NONE));
-        }
-    }
-}
-
-void generate_knight_moves(Board& board, MoveList& move_list, int sq, int side) {
-    bool is_white_turn = (side == WHITE);
-    for (int offset : KNIGHT_OFFSETS) {
-        int to_sq = sq + offset;
-        int p = board.pieces[to_sq];
-        if (p == OFFBOARD) continue;
         
-        if (p == EMPTY) {
-            move_list.add(encode_move(sq, to_sq, FLAG_NONE));
-        } else {
-            if (is_white_turn && p < 0) {
-                move_list.add(encode_move(sq, to_sq, FLAG_CAPTURE));
-            } else if (!is_white_turn && p > 0) {
-                move_list.add(encode_move(sq, to_sq, FLAG_CAPTURE));
-            }
-        }
-    }
-}
-
-void generate_king_moves(Board& board, MoveList& move_list, int sq, int side) {
-    bool is_white_turn = (side == WHITE);
-    for (int offset : KING_OFFSETS) {
-        int to_sq = sq + offset;
-        int p = board.pieces[to_sq];
-        if (p == OFFBOARD) continue;
+        // Captures
+        U64 cap_left = (us == WHITE) ? ((pawns << 7) & 0x7F7F7F7F7F7F7F7FULL) : ((pawns >> 9) & 0x7F7F7F7F7F7F7F7FULL);
+        U64 cap_right = (us == WHITE) ? ((pawns << 9) & 0xFEFEFEFEFEFEFEFEULL) : ((pawns >> 7) & 0xFEFEFEFEFEFEFEFEULL);
         
-        if (p == EMPTY) {
-            move_list.add(encode_move(sq, to_sq, FLAG_NONE));
-        } else {
-            if (is_white_turn && p < 0) {
-                move_list.add(encode_move(sq, to_sq, FLAG_CAPTURE));
-            } else if (!is_white_turn && p > 0) {
-                move_list.add(encode_move(sq, to_sq, FLAG_CAPTURE));
-            }
-        }
-    }
-    
-    if (side == WHITE) {
-        if ((board.castling_rights & WK_CASTLING) && board.pieces[F1] == EMPTY && board.pieces[G1] == EMPTY) {
-            if (!board.is_square_attacked(E1, BLACK) && !board.is_square_attacked(F1, BLACK) && !board.is_square_attacked(G1, BLACK)) {
-                move_list.add(encode_move(E1, G1, FLAG_CASTLING));
-            }
-        }
-        if ((board.castling_rights & WQ_CASTLING) && board.pieces[D1] == EMPTY && board.pieces[C1] == EMPTY && board.pieces[B1] == EMPTY) {
-            if (!board.is_square_attacked(E1, BLACK) && !board.is_square_attacked(D1, BLACK) && !board.is_square_attacked(C1, BLACK)) {
-                move_list.add(encode_move(E1, C1, FLAG_CASTLING));
-            }
-        }
-    } else {
-        if ((board.castling_rights & BK_CASTLING) && board.pieces[F8] == EMPTY && board.pieces[G8] == EMPTY) {
-            if (!board.is_square_attacked(E8, WHITE) && !board.is_square_attacked(F8, WHITE) && !board.is_square_attacked(G8, WHITE)) {
-                move_list.add(encode_move(E8, G8, FLAG_CASTLING));
-            }
-        }
-        if ((board.castling_rights & BQ_CASTLING) && board.pieces[D8] == EMPTY && board.pieces[C8] == EMPTY && board.pieces[B8] == EMPTY) {
-            if (!board.is_square_attacked(E8, WHITE) && !board.is_square_attacked(D8, WHITE) && !board.is_square_attacked(C8, WHITE)) {
-                move_list.add(encode_move(E8, C8, FLAG_CASTLING));
-            }
-        }
-    }
-}
-
-void generate_sliding_moves(Board& board, MoveList& move_list, int sq, int side, const int* offsets, int num_offsets) {
-    bool is_white_turn = (side == WHITE);
-    for (int i = 0; i < num_offsets; i++) {
-        int dir = offsets[i];
-        int to_sq = sq + dir;
-        while (board.pieces[to_sq] != OFFBOARD) {
-            if (board.pieces[to_sq] == EMPTY) {
-                move_list.add(encode_move(sq, to_sq, FLAG_NONE));
-                to_sq += dir;
+        U64 cap_l = cap_left & enemies;
+        U64 cap_r = cap_right & enemies;
+        
+        while (cap_l) {
+            int to = pop_lsb(cap_l);
+            int from = (us == WHITE) ? to - 7 : to + 9;
+            if ((us == WHITE && to >= A8) || (us == BLACK && to <= H1)) {
+                list.add(Move(static_cast<Square>(from), static_cast<Square>(to), Q_PROMO_CAP));
+                list.add(Move(static_cast<Square>(from), static_cast<Square>(to), R_PROMO_CAP));
+                list.add(Move(static_cast<Square>(from), static_cast<Square>(to), B_PROMO_CAP));
+                list.add(Move(static_cast<Square>(from), static_cast<Square>(to), N_PROMO_CAP));
             } else {
-                if (is_white_turn && board.pieces[to_sq] < 0) {
-                    move_list.add(encode_move(sq, to_sq, FLAG_CAPTURE));
-                } else if (!is_white_turn && board.pieces[to_sq] > 0) {
-                    move_list.add(encode_move(sq, to_sq, FLAG_CAPTURE));
-                }
-                break;
+                list.add(Move(static_cast<Square>(from), static_cast<Square>(to), CAPTURE));
+            }
+        }
+        
+        while (cap_r) {
+            int to = pop_lsb(cap_r);
+            int from = (us == WHITE) ? to - 9 : to + 7;
+            if ((us == WHITE && to >= A8) || (us == BLACK && to <= H1)) {
+                list.add(Move(static_cast<Square>(from), static_cast<Square>(to), Q_PROMO_CAP));
+                list.add(Move(static_cast<Square>(from), static_cast<Square>(to), R_PROMO_CAP));
+                list.add(Move(static_cast<Square>(from), static_cast<Square>(to), B_PROMO_CAP));
+                list.add(Move(static_cast<Square>(from), static_cast<Square>(to), N_PROMO_CAP));
+            } else {
+                list.add(Move(static_cast<Square>(from), static_cast<Square>(to), CAPTURE));
+            }
+        }
+        
+        // En Passant
+        if (board.en_passant != NO_SQ) {
+            U64 ep = (1ULL << board.en_passant);
+            U64 ep_l = cap_left & ep;
+            U64 ep_r = cap_right & ep;
+            while (ep_l) {
+                int to = pop_lsb(ep_l);
+                int from = (us == WHITE) ? to - 7 : to + 9;
+                list.add(Move(static_cast<Square>(from), static_cast<Square>(to), EP_CAPTURE));
+            }
+            while (ep_r) {
+                int to = pop_lsb(ep_r);
+                int from = (us == WHITE) ? to - 9 : to + 7;
+                list.add(Move(static_cast<Square>(from), static_cast<Square>(to), EP_CAPTURE));
             }
         }
     }
-}
 
-void generate_moves(Board& board, MoveList& move_list) {
-    
-    
-    
-    int side = board.side;
-    bool is_white_turn = (side == WHITE);
-    
-    for (int sq = 0; sq < 120; sq++) {
-        int p = board.pieces[sq];
-        if (p == EMPTY || p == OFFBOARD) continue;
-        if ((is_white_turn && p < 0) || (!is_white_turn && p > 0)) continue;
+    void generate_piece_moves(const Board& board, MoveList& list, Piece p, bool captures_only) {
+        Color us = piece_color(p);
+        U64 pieces = board.pieces[p];
+        U64 enemies = board.occ(us == WHITE ? BLACK : WHITE);
+        U64 empty = ~board.occ();
+        U64 mask = captures_only ? enemies : (enemies | empty);
         
-        int abs_p = std::abs(p);
-        switch(abs_p) {
-            case W_PAWN: generate_pawn_moves(board, move_list, sq, side); break;
-            case W_KNIGHT: generate_knight_moves(board, move_list, sq, side); break;
-            case W_BISHOP: generate_sliding_moves(board, move_list, sq, side, BISHOP_OFFSETS, 4); break;
-            case W_ROOK: generate_sliding_moves(board, move_list, sq, side, ROOK_OFFSETS, 4); break;
-            case W_QUEEN: 
-                generate_sliding_moves(board, move_list, sq, side, BISHOP_OFFSETS, 4);
-                generate_sliding_moves(board, move_list, sq, side, ROOK_OFFSETS, 4);
-                break;
-            case W_KING: generate_king_moves(board, move_list, sq, side); break;
+        while (pieces) {
+            int from = pop_lsb(pieces);
+            U64 attacks = 0;
+            switch (piece_type(p)) {
+                case KNIGHT: attacks = Bitboards::KnightAttacks[from]; break;
+                case BISHOP: attacks = Magic::get_bishop_attacks(static_cast<Square>(from), board.occ()); break;
+                case ROOK: attacks = Magic::get_rook_attacks(static_cast<Square>(from), board.occ()); break;
+                case QUEEN: attacks = Magic::get_queen_attacks(static_cast<Square>(from), board.occ()); break;
+                case KING: attacks = Bitboards::KingAttacks[from]; break;
+                default: break;
+            }
+            
+            attacks &= mask;
+            while (attacks) {
+                int to = pop_lsb(attacks);
+                uint16_t flag = (enemies & (1ULL << to)) ? CAPTURE : QUIET;
+                list.add(Move(static_cast<Square>(from), static_cast<Square>(to), flag));
+            }
         }
     }
-}
 
-void generate_captures(Board& board, MoveList& move_list) {
-    
-    
-    
-    int side = board.side;
-    bool is_white_turn = (side == WHITE);
-    
-    for (int sq = 0; sq < 120; sq++) {
-        int p = board.pieces[sq];
-        if (p == EMPTY || p == OFFBOARD) continue;
-        if ((is_white_turn && p < 0) || (!is_white_turn && p > 0)) continue;
+    void generate_pseudo_legal(const Board& board, MoveList& list, bool captures_only) {
+        Color us = board.side_to_move;
         
-        int abs_p = std::abs(p);
-        if (abs_p == W_PAWN) {
-            int dir = is_white_turn ? 10 : -10;
-            int promo_rank = is_white_turn ? 9 : 2;
-            
-            int to = sq + dir;
-            if (board.pieces[to] == EMPTY && (to / 10 == promo_rank)) {
-                move_list.add(encode_move(sq, to, FLAG_PROMOTION));
-            }
-            
-            int cap1 = sq + dir - 1;
-            int cap2 = sq + dir + 1;
-            
-            if (board.pieces[cap1] != OFFBOARD) {
-                if (is_white_turn && board.pieces[cap1] < 0) {
-                    if (cap1 / 10 == promo_rank) move_list.add(encode_move(sq, cap1, FLAG_PROMOTION));
-                    else move_list.add(encode_move(sq, cap1, FLAG_CAPTURE));
-                } else if (!is_white_turn && board.pieces[cap1] > 0) {
-                    if (cap1 / 10 == promo_rank) move_list.add(encode_move(sq, cap1, FLAG_PROMOTION));
-                    else move_list.add(encode_move(sq, cap1, FLAG_CAPTURE));
-                } else if (cap1 == board.en_passant) {
-                    move_list.add(encode_move(sq, cap1, FLAG_NONE));
-                }
-            }
-            if (board.pieces[cap2] != OFFBOARD) {
-                if (is_white_turn && board.pieces[cap2] < 0) {
-                    if (cap2 / 10 == promo_rank) move_list.add(encode_move(sq, cap2, FLAG_PROMOTION));
-                    else move_list.add(encode_move(sq, cap2, FLAG_CAPTURE));
-                } else if (!is_white_turn && board.pieces[cap2] > 0) {
-                    if (cap2 / 10 == promo_rank) move_list.add(encode_move(sq, cap2, FLAG_PROMOTION));
-                    else move_list.add(encode_move(sq, cap2, FLAG_CAPTURE));
-                } else if (cap2 == board.en_passant) {
-                    move_list.add(encode_move(sq, cap2, FLAG_NONE));
-                }
-            }
-        } else if (abs_p == W_KNIGHT) {
-            for (int offset : KNIGHT_OFFSETS) {
-                int to_sq = sq + offset;
-                int target_p = board.pieces[to_sq];
-                if (target_p == OFFBOARD) continue;
-                if (is_white_turn && target_p < 0) {
-                    move_list.add(encode_move(sq, to_sq, FLAG_CAPTURE));
-                } else if (!is_white_turn && target_p > 0) {
-                    move_list.add(encode_move(sq, to_sq, FLAG_CAPTURE));
-                }
-            }
-        } else if (abs_p == W_KING) {
-            for (int offset : KING_OFFSETS) {
-                int to_sq = sq + offset;
-                int target_p = board.pieces[to_sq];
-                if (target_p == OFFBOARD) continue;
-                if (is_white_turn && target_p < 0) {
-                    move_list.add(encode_move(sq, to_sq, FLAG_CAPTURE));
-                } else if (!is_white_turn && target_p > 0) {
-                    move_list.add(encode_move(sq, to_sq, FLAG_CAPTURE));
-                }
-            }
-        } else if (abs_p == W_BISHOP) {
-            for (int offset : BISHOP_OFFSETS) {
-                int to_sq = sq + offset;
-                while (board.pieces[to_sq] != OFFBOARD) {
-                    int target_p = board.pieces[to_sq];
-                    if (target_p == EMPTY) {
-                        to_sq += offset;
-                    } else {
-                        if (is_white_turn && target_p < 0) move_list.add(encode_move(sq, to_sq, FLAG_CAPTURE));
-                        else if (!is_white_turn && target_p > 0) move_list.add(encode_move(sq, to_sq, FLAG_CAPTURE));
-                        break;
+        generate_pawn_moves(board, list, us, captures_only);
+        
+        generate_piece_moves(board, list, us == WHITE ? W_KNIGHT : B_KNIGHT, captures_only);
+        generate_piece_moves(board, list, us == WHITE ? W_BISHOP : B_BISHOP, captures_only);
+        generate_piece_moves(board, list, us == WHITE ? W_ROOK : B_ROOK, captures_only);
+        generate_piece_moves(board, list, us == WHITE ? W_QUEEN : B_QUEEN, captures_only);
+        generate_piece_moves(board, list, us == WHITE ? W_KING : B_KING, captures_only);
+        
+        if (!captures_only) {
+            // Castling
+            if (us == WHITE && !board.is_in_check(WHITE)) {
+                if (board.castle_rights & WK) {
+                    if (!get_bit(board.occ(), F1) && !get_bit(board.occ(), G1)) {
+                        if (!board.is_attacked(F1, BLACK) && !board.is_attacked(G1, BLACK)) {
+                            list.add(Move(E1, G1, KING_CASTLE));
+                        }
                     }
                 }
-            }
-        } else if (abs_p == W_ROOK) {
-            for (int offset : ROOK_OFFSETS) {
-                int to_sq = sq + offset;
-                while (board.pieces[to_sq] != OFFBOARD) {
-                    int target_p = board.pieces[to_sq];
-                    if (target_p == EMPTY) {
-                        to_sq += offset;
-                    } else {
-                        if (is_white_turn && target_p < 0) move_list.add(encode_move(sq, to_sq, FLAG_CAPTURE));
-                        else if (!is_white_turn && target_p > 0) move_list.add(encode_move(sq, to_sq, FLAG_CAPTURE));
-                        break;
+                if (board.castle_rights & WQ) {
+                    if (!get_bit(board.occ(), D1) && !get_bit(board.occ(), C1) && !get_bit(board.occ(), B1)) {
+                        if (!board.is_attacked(D1, BLACK) && !board.is_attacked(C1, BLACK)) {
+                            list.add(Move(E1, C1, QUEEN_CASTLE));
+                        }
                     }
                 }
-            }
-        } else if (abs_p == W_QUEEN) {
-            for (int offset : BISHOP_OFFSETS) {
-                int to_sq = sq + offset;
-                while (board.pieces[to_sq] != OFFBOARD) {
-                    int target_p = board.pieces[to_sq];
-                    if (target_p == EMPTY) {
-                        to_sq += offset;
-                    } else {
-                        if (is_white_turn && target_p < 0) move_list.add(encode_move(sq, to_sq, FLAG_CAPTURE));
-                        else if (!is_white_turn && target_p > 0) move_list.add(encode_move(sq, to_sq, FLAG_CAPTURE));
-                        break;
+            } else if (us == BLACK && !board.is_in_check(BLACK)) {
+                if (board.castle_rights & BK) {
+                    if (!get_bit(board.occ(), F8) && !get_bit(board.occ(), G8)) {
+                        if (!board.is_attacked(F8, WHITE) && !board.is_attacked(G8, WHITE)) {
+                            list.add(Move(E8, G8, KING_CASTLE));
+                        }
                     }
                 }
-            }
-            for (int offset : ROOK_OFFSETS) {
-                int to_sq = sq + offset;
-                while (board.pieces[to_sq] != OFFBOARD) {
-                    int target_p = board.pieces[to_sq];
-                    if (target_p == EMPTY) {
-                        to_sq += offset;
-                    } else {
-                        if (is_white_turn && target_p < 0) move_list.add(encode_move(sq, to_sq, FLAG_CAPTURE));
-                        else if (!is_white_turn && target_p > 0) move_list.add(encode_move(sq, to_sq, FLAG_CAPTURE));
-                        break;
+                if (board.castle_rights & BQ) {
+                    if (!get_bit(board.occ(), D8) && !get_bit(board.occ(), C8) && !get_bit(board.occ(), B8)) {
+                        if (!board.is_attacked(D8, WHITE) && !board.is_attacked(C8, WHITE)) {
+                            list.add(Move(E8, C8, QUEEN_CASTLE));
+                        }
                     }
                 }
             }

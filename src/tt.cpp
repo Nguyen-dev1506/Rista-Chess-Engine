@@ -1,42 +1,85 @@
 #include "tt.h"
 
-std::vector<TTEntry> TT;
-extern const int UNKNOWN_SCORE = -30001;
+TranspositionTable TT(16); // Default 16MB
 
-void init_tt() {
-    TT.resize(TT_SIZE);
-    clear_tt();
+TranspositionTable::TranspositionTable(size_t size_mb) {
+    resize(size_mb);
 }
 
-void clear_tt() {
-    for (int i = 0; i < TT_SIZE; i++) {
-        TT[i].hash_key = 0;
-        TT[i].depth = 0;
-        TT[i].flag = 0;
-        TT[i].score = 0;
-        TT[i].best_move = 0;
+void TranspositionTable::resize(size_t size_mb) {
+    size_t num_entries = (size_mb * 1024 * 1024) / sizeof(TTEntry);
+    table.resize(num_entries);
+    clear();
+}
+
+void TranspositionTable::clear() {
+    for (auto& entry : table) {
+        entry.key = 0;
+        entry.depth = 0;
+        entry.score = 0;
+        entry.flag_age = TT_EXACT;
+        entry.best_move = 0;
     }
+    current_age = 0;
 }
 
-int probe_tt(uint64_t hash_key, int depth, int alpha, int beta, Move& best_move) {
-    TTEntry& entry = TT[hash_key & (TT_SIZE - 1)];
-    if (entry.hash_key == hash_key) {
+bool TranspositionTable::probe(U64 key, int depth, int alpha, int beta, int& score, uint16_t& best_move) {
+    if (table.empty()) return false;
+    TTEntry& entry = table[key % table.size()];
+    
+    if (entry.key == key) {
         best_move = entry.best_move;
         if (entry.depth >= depth) {
-            if (entry.flag == HASH_EXACT) return entry.score;
-            if (entry.flag == HASH_ALPHA && entry.score <= alpha) return alpha;
-            if (entry.flag == HASH_BETA && entry.score >= beta) return beta;
+            TTFlag flag = static_cast<TTFlag>(entry.flag_age & 3);
+            if (flag == TT_EXACT) {
+                score = entry.score;
+                return true;
+            }
+            if (flag == TT_ALPHA && entry.score <= alpha) {
+                score = entry.score;
+                return true;
+            }
+            if (flag == TT_BETA && entry.score >= beta) {
+                score = entry.score;
+                return true;
+            }
         }
     }
-    return UNKNOWN_SCORE;
+    return false;
 }
 
-void store_tt(uint64_t hash_key, int depth, int flag, int score, Move best_move) {
-    TTEntry& entry = TT[hash_key & (TT_SIZE - 1)];
-    // Always replace strategy for now
-    entry.hash_key = hash_key;
-    entry.depth = depth;
-    entry.flag = flag;
+void TranspositionTable::store(U64 key, int depth, int score, TTFlag flag, uint16_t best_move) {
+    if (table.empty()) return;
+    TTEntry& entry = table[key % table.size()];
+    
+    uint8_t entry_age = entry.flag_age >> 2;
+    
+    // Replacement scheme
+    if (entry.key == key) {
+        if (entry.depth > depth) {
+            // Keep the deeper entry, but maybe update age and best_move if we have a new one
+            if (best_move != 0) entry.best_move = best_move;
+            entry.flag_age = (current_age << 2) | (entry.flag_age & 3);
+            return;
+        }
+    } else {
+        if (entry_age == current_age && entry.depth > depth) {
+            return;
+        }
+    }
+    
+    entry.key = key;
     entry.score = score;
+    entry.depth = depth;
+    entry.flag_age = (current_age << 2) | (flag & 3);
     entry.best_move = best_move;
+}
+
+uint16_t TranspositionTable::probe_move(U64 key) {
+    if (table.empty()) return 0;
+    TTEntry& entry = table[key % table.size()];
+    if (entry.key == key) {
+        return entry.best_move;
+    }
+    return 0;
 }

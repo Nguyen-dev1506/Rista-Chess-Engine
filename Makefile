@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -O3 -Wall -Wextra -std=c++11 -Isrc
+CXXFLAGS = -O3 -Wall -Wextra -std=c++20 -march=native -flto -Isrc
 
 SRCS = $(wildcard src/*.cpp)
 OBJS = $(patsubst src/%.cpp,build/%.o,$(SRCS))

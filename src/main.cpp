@@ -1,12 +1,17 @@
-#include "uci.h"
+#include "bitboard.h"
+#include "magic.h"
 #include "zobrist.h"
-#include "tt.h"
-#include "eval.h"
+#include "uci.h"
+#include <iostream>
 
 int main() {
-    init_zobrist();
-    init_tt();
-    init_eval();
-    uci_loop();
+    std::cout << "Initializing Rista Engine (Bitboard)..." << std::endl;
+    Bitboards::init();
+    Magic::init();
+    Zobrist::init();
+    std::cout << "Initialization Complete." << std::endl;
+    
+    UCI::loop();
+    
     return 0;
 }
