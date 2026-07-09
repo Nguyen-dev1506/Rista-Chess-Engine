@@ -103,7 +103,7 @@ class ChessGUI:
         
         # Move Log
         tk.Label(right_panel, text="Move Log").pack(anchor=tk.W)
-        self.log_text = scrolledtext.ScrolledText(right_panel, width=30, height=20, state=tk.DISABLED)
+        self.log_text = scrolledtext.ScrolledText(right_panel, width=30, height=12, state=tk.DISABLED)
         self.log_text.pack(fill=tk.Y, pady=(0, 10))
         
         # Controls
