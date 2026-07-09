@@ -32,8 +32,8 @@ bool TranspositionTable::probe(U64 key, int depth, int alpha, int beta, int& sco
         if (entry.depth >= depth) {
             TTFlag flag = static_cast<TTFlag>(entry.flag_age & 3);
             int tt_score = entry.score;
-            if (tt_score >= 48900) tt_score -= ply;
-            else if (tt_score <= -48900) tt_score += ply;
+            if (tt_score >= 29900) tt_score -= ply;
+            else if (tt_score <= -29900) tt_score += ply;
             
             if (flag == TT_EXACT) {
                 score = tt_score;

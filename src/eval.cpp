@@ -5,8 +5,8 @@
 #include <iostream>
 
 namespace Eval {
-    const int PieceValueMG[6] = { 82, 337, 365, 477, 1025, 0 };
-    const int PieceValueEG[6] = { 94, 281, 297, 512,  936, 0 };
+    const int PieceValueMG[6] = { 82, 337, 365, 477, 1025, 20000 };
+    const int PieceValueEG[6] = { 94, 281, 297, 512,  936, 20000 };
 
     const int mg_pawn[64] = {
         0, 0, 0, 0, 0, 0, 0, 0,
@@ -170,12 +170,34 @@ namespace Eval {
         int eg[2] = {0, 0};
         int gamePhase = 0;
 
+        int num_pieces = popcount(board.pieces[W_KNIGHT]) + popcount(board.pieces[W_BISHOP]) + 
+                         popcount(board.pieces[W_ROOK]) + popcount(board.pieces[W_QUEEN]) +
+                         popcount(board.pieces[B_KNIGHT]) + popcount(board.pieces[B_BISHOP]) + 
+                         popcount(board.pieces[B_ROOK]) + popcount(board.pieces[B_QUEEN]) +
+                         popcount(board.pieces[W_PAWN]) + popcount(board.pieces[B_PAWN]);
+        
+        if (num_pieces == 0) return 0; // KvK
+        if (num_pieces == 1 && (popcount(board.pieces[W_KNIGHT]) == 1 || popcount(board.pieces[B_KNIGHT]) == 1 || 
+                                popcount(board.pieces[W_BISHOP]) == 1 || popcount(board.pieces[B_BISHOP]) == 1)) {
+            return 0; // KvKN or KvKB
+        }
+
         // Mobility, King Safety, Pawn Structure scores
         int pawn_mg[2] = {0, 0}, pawn_eg[2] = {0, 0};
         int mob_mg[2] = {0, 0}, mob_eg[2] = {0, 0};
         int ks_mg[2] = {0, 0}, ks_eg[2] = {0, 0};
 
         U64 pawns[2] = {board.pieces[W_PAWN], board.pieces[B_PAWN]};
+
+        U64 enemy_pawn_attacks[2] = {0, 0};
+        U64 wp = pawns[WHITE];
+        while (wp) {
+            enemy_pawn_attacks[WHITE] |= Bitboards::PawnAttacks[WHITE][pop_lsb(wp)];
+        }
+        U64 bp = pawns[BLACK];
+        while (bp) {
+            enemy_pawn_attacks[BLACK] |= Bitboards::PawnAttacks[BLACK][pop_lsb(bp)];
+        }
 
         // Bishop pair bonus
         if (popcount(board.pieces[W_BISHOP]) >= 2) { mg[WHITE] += 40; eg[WHITE] += 50; }
@@ -265,7 +287,7 @@ namespace Eval {
                         else if (pt == ROOK) attacks = Magic::get_rook_attacks(static_cast<Square>(sq), board.occ());
                         else if (pt == QUEEN) attacks = Magic::get_queen_attacks(static_cast<Square>(sq), board.occ());
 
-                        U64 safe_moves = attacks & ~board.occ(color);
+                        U64 safe_moves = attacks & ~board.occ(color) & ~enemy_pawn_attacks[opp];
                         // Very simple mobility score
                         int mob = popcount(safe_moves);
                         mob_mg[color] += mob * 3;
@@ -299,8 +321,9 @@ namespace Eval {
                             
                             U64 rank_mask = (color == WHITE) ? 0x00000000FFFFFF00ULL : 0x00FFFFFF00000000ULL;
                             U64 ks_zone = (file_mask | adj_files) & rank_mask;
-                            int shield = popcount(our_pawns & ks_zone);
-                            ks_mg[color] += (shield * 15) - 45; // Stronger penalty
+                            const int shield_penalty[4] = { -80, -45, -15, 0 };
+                            int shield_count = std::min(3, popcount(our_pawns & ks_zone));
+                            ks_mg[color] += shield_penalty[shield_count];
                             
                             // Open files near king (Dangerous if WE don't have a pawn)
                             int open_files = 0;
@@ -314,6 +337,37 @@ namespace Eval {
                             if (enemy_heavy & file_mask) ks_mg[color] -= 30;
                             if ((sq % 8) > 0 && (enemy_heavy & (file_mask >> 1))) ks_mg[color] -= 20;
                             if ((sq % 8) < 7 && (enemy_heavy & (file_mask << 1))) ks_mg[color] -= 20;
+
+                            // King Danger from enemy pieces attacking king ring
+                            U64 king_ring = Bitboards::KingAttacks[sq];
+                            int attack_units = 0;
+                            
+                            U64 opp_knights = board.pieces[(color == WHITE) ? B_KNIGHT : W_KNIGHT];
+                            while (opp_knights) {
+                                int n_sq = pop_lsb(opp_knights);
+                                if (Bitboards::KnightAttacks[n_sq] & king_ring) attack_units += 2;
+                            }
+                            U64 opp_bishops = board.pieces[(color == WHITE) ? B_BISHOP : W_BISHOP];
+                            while (opp_bishops) {
+                                int b_sq = pop_lsb(opp_bishops);
+                                if (Magic::get_bishop_attacks(static_cast<Square>(b_sq), board.occ()) & king_ring) attack_units += 2;
+                            }
+                            U64 opp_rooks = board.pieces[(color == WHITE) ? B_ROOK : W_ROOK];
+                            while (opp_rooks) {
+                                int r_sq = pop_lsb(opp_rooks);
+                                if (Magic::get_rook_attacks(static_cast<Square>(r_sq), board.occ()) & king_ring) attack_units += 3;
+                            }
+                            U64 opp_queens = board.pieces[(color == WHITE) ? B_QUEEN : W_QUEEN];
+                            while (opp_queens) {
+                                int q_sq = pop_lsb(opp_queens);
+                                if (Magic::get_queen_attacks(static_cast<Square>(q_sq), board.occ()) & king_ring) attack_units += 5;
+                            }
+                            
+                            if (attack_units > 0) {
+                                const int danger_table[15] = {0, 0, 10, 20, 35, 55, 80, 110, 145, 185, 230, 280, 335, 400, 470};
+                                int danger = danger_table[std::min(14, attack_units)];
+                                ks_mg[color] -= danger;
+                            }
                         }
                     }
                 }
@@ -324,6 +378,22 @@ namespace Eval {
         eg[WHITE] += pawn_eg[WHITE] + mob_eg[WHITE] + ks_eg[WHITE];
         mg[BLACK] += pawn_mg[BLACK] + mob_mg[BLACK] + ks_mg[BLACK];
         eg[BLACK] += pawn_eg[BLACK] + mob_eg[BLACK] + ks_eg[BLACK];
+
+        if (gamePhase >= 20) {
+            int w_undeveloped = 0;
+            if (board.piece_on(B1) == W_KNIGHT) { mg[WHITE] -= 15; w_undeveloped++; }
+            if (board.piece_on(G1) == W_KNIGHT) { mg[WHITE] -= 15; w_undeveloped++; }
+            if (board.piece_on(C1) == W_BISHOP) { mg[WHITE] -= 15; w_undeveloped++; }
+            if (board.piece_on(F1) == W_BISHOP) { mg[WHITE] -= 15; w_undeveloped++; }
+            if (board.piece_on(D1) != W_QUEEN && w_undeveloped >= 2) { mg[WHITE] -= 20; }
+
+            int b_undeveloped = 0;
+            if (board.piece_on(B8) == B_KNIGHT) { mg[BLACK] -= 15; b_undeveloped++; }
+            if (board.piece_on(G8) == B_KNIGHT) { mg[BLACK] -= 15; b_undeveloped++; }
+            if (board.piece_on(C8) == B_BISHOP) { mg[BLACK] -= 15; b_undeveloped++; }
+            if (board.piece_on(F8) == B_BISHOP) { mg[BLACK] -= 15; b_undeveloped++; }
+            if (board.piece_on(D8) != B_QUEEN && b_undeveloped >= 2) { mg[BLACK] -= 20; }
+        }
 
         int mgScore = mg[WHITE] - mg[BLACK];
         int egScore = eg[WHITE] - eg[BLACK];
