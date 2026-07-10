@@ -264,7 +264,6 @@ namespace Search {
     }
 
     int negamax(Board& board, int depth, int ply, int alpha, int beta, bool do_null, int root_depth) {
-        TT.prefetch(board.hash_key);
         
         static thread_local int local_nodes_count = 0;
         local_nodes_count++;

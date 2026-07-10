@@ -148,6 +148,12 @@ namespace Eval {
         return (c == BLACK) ? (sq ^ 56) : sq;
     }
 
+    inline int chebyshev(int sq1, int sq2) {
+        int f1 = sq1 % 8, r1 = sq1 / 8;
+        int f2 = sq2 % 8, r2 = sq2 / 8;
+        return std::max(std::abs(f1 - f2), std::abs(r1 - r2));
+    }
+
     U64 get_front_span(Color c, Square sq) {
         U64 file = FileA << (sq % 8);
         U64 adj = 0;
@@ -181,6 +187,9 @@ namespace Eval {
                                 popcount(board.pieces[W_BISHOP]) == 1 || popcount(board.pieces[B_BISHOP]) == 1)) {
             return 0; // KvKN or KvKB
         }
+
+        int w_king_sq = lsb(board.pieces[W_KING]);
+        int b_king_sq = lsb(board.pieces[B_KING]);
 
         // Mobility, King Safety, Pawn Structure scores
         int pawn_mg[2] = {0, 0}, pawn_eg[2] = {0, 0};
@@ -249,14 +258,45 @@ namespace Eval {
                         U64 front = get_front_span(color, static_cast<Square>(sq));
                         if ((opp_pawns & front) == 0) {
                             int r = (color == WHITE) ? (sq / 8) : 7 - (sq / 8);
-                            int bonus_mg = r * 20; // Increased
-                            int bonus_eg = r * r * 15; // Heavily increased
+                            
+                            // Use reasonable arrays/multipliers instead of quadratic explosions
+                            const int passed_bonus_mg[8] = {0, 5, 10, 20, 35, 60, 90, 0};
+                            const int passed_bonus_eg[8] = {0, 10, 20, 40, 70, 120, 180, 0};
+                            
+                            int bonus_mg = passed_bonus_mg[r];
+                            int bonus_eg = passed_bonus_eg[r];
 
                             // Check Blockade
                             Square forward_sq = static_cast<Square>((color == WHITE) ? sq + 8 : sq - 8);
                             if (board.piece_on(forward_sq) != EMPTY_PIECE) {
                                 bonus_mg /= 2;
                                 bonus_eg /= 2;
+                            }
+
+                            // 1. King-to-Passed-Pawn distance
+                            int our_king = (color == WHITE) ? w_king_sq : b_king_sq;
+                            int opp_king = (color == WHITE) ? b_king_sq : w_king_sq;
+                            int our_dist = chebyshev(sq, our_king);
+                            int opp_dist = chebyshev(sq, opp_king);
+
+                            // Bonus for our king being close, penalty for enemy king being close
+                            bonus_eg += (8 - our_dist) * 2;
+                            bonus_eg -= (8 - opp_dist) * 5;
+
+                            // 2. Rule of the Square
+                            int dist_to_prom = 7 - r;
+                            // If pawn is on start square, it can move 2
+                            if (r == 1) dist_to_prom--;
+                            
+                            // Adjust for whose turn it is
+                            int eff_dist_to_prom = dist_to_prom;
+                            if (board.side_to_move != color) eff_dist_to_prom++;
+                            
+                            U64 opp_major_minor = board.occ(opp) & ~opp_pawns & ~board.pieces[(opp == WHITE) ? W_KING : B_KING];
+
+                            if (opp_major_minor == 0 && opp_dist > eff_dist_to_prom) {
+                                // Enemy king cannot catch the pawn, and has no pieces to stop it!
+                                bonus_eg += 250; // Massive bonus
                             }
 
                             pawn_mg[color] += bonus_mg;
@@ -397,6 +437,37 @@ namespace Eval {
 
         int mgScore = mg[WHITE] - mg[BLACK];
         int egScore = eg[WHITE] - eg[BLACK];
+        
+        // 3. Endgame King Mating Net (Push to edge)
+        if (gamePhase <= 2) {
+            if (egScore > 400) { // White is winning
+                int opp_king_r = b_king_sq / 8;
+                int opp_king_f = b_king_sq % 8;
+                int edge_dist = std::min(opp_king_r, 7 - opp_king_r) + std::min(opp_king_f, 7 - opp_king_f);
+                egScore += (7 - edge_dist) * 10;
+                egScore += (7 - chebyshev(w_king_sq, b_king_sq)) * 5; // Bring our king closer
+            } else if (egScore < -400) { // Black is winning
+                int opp_king_r = w_king_sq / 8;
+                int opp_king_f = w_king_sq % 8;
+                int edge_dist = std::min(opp_king_r, 7 - opp_king_r) + std::min(opp_king_f, 7 - opp_king_f);
+                egScore -= (7 - edge_dist) * 10;
+                egScore -= (7 - chebyshev(b_king_sq, w_king_sq)) * 5;
+            }
+        }
+
+        // 4. Endgame Scaling (Drawish positions)
+        if (egScore > 0 && popcount(board.pieces[W_PAWN]) == 0) {
+            if (popcount(board.pieces[W_ROOK]) == 0 && popcount(board.pieces[W_QUEEN]) == 0) {
+                // White has only minor pieces and no pawns -> hard to win
+                egScore /= 4;
+                mgScore /= 4;
+            }
+        } else if (egScore < 0 && popcount(board.pieces[B_PAWN]) == 0) {
+            if (popcount(board.pieces[B_ROOK]) == 0 && popcount(board.pieces[B_QUEEN]) == 0) {
+                egScore /= 4;
+                mgScore /= 4;
+            }
+        }
         
         int mgPhase = gamePhase;
         if (mgPhase > 24) mgPhase = 24;

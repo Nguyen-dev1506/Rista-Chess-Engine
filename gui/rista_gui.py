@@ -6,6 +6,8 @@ import queue
 import chess
 import time
 import re
+import os
+from PIL import Image, ImageTk
 
 # UI Constants
 CELL_SIZE = 60
@@ -19,6 +21,11 @@ MOVE_HIGHLIGHT_COLOR = "#CDD26A"
 PIECE_UNICODE = {
     'P': '♙', 'N': '♘', 'B': '♗', 'R': '♖', 'Q': '♕', 'K': '♔',
     'p': '♟', 'n': '♞', 'b': '♝', 'r': '♜', 'q': '♛', 'k': '♚'
+}
+
+PIECE_FILE_MAP = {
+    'P': 'wP.png', 'N': 'wN.png', 'B': 'wB.png', 'R': 'wR.png', 'Q': 'wQ.png', 'K': 'wK.png',
+    'p': 'bP.png', 'n': 'bN.png', 'b': 'bB.png', 'r': 'bR.png', 'q': 'bQ.png', 'k': 'bK.png'
 }
 
 
@@ -68,6 +75,9 @@ class ChessGUI:
         # Game State
         self.board = chess.Board()
         self.selected_sq = None
+        self.drag_data = {"sq": None, "x": 0, "y": 0}
+        self.images = {}
+        self.load_images()
         
         self.engine_rista = None
         self.engine_sunfish = None
@@ -95,7 +105,9 @@ class ChessGUI:
         # Board Canvas
         self.canvas = tk.Canvas(main_frame, width=BOARD_SIZE, height=BOARD_SIZE)
         self.canvas.pack(side=tk.LEFT, padx=(0, 10))
-        self.canvas.bind("<Button-1>", self.on_canvas_click)
+        self.canvas.bind("<ButtonPress-1>", self.on_canvas_press)
+        self.canvas.bind("<B1-Motion>", self.on_canvas_drag)
+        self.canvas.bind("<ButtonRelease-1>", self.on_canvas_release)
         
         # Right Panel
         right_panel = tk.Frame(main_frame)
@@ -139,6 +151,15 @@ class ChessGUI:
         self.status_label.pack(fill=tk.X, pady=5)
         
         self.draw_board()
+
+    def load_images(self):
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        img_dir = os.path.join(script_dir, "..", "chess pair", "pngs")
+        for symbol, filename in PIECE_FILE_MAP.items():
+            path = os.path.join(img_dir, filename)
+            if os.path.exists(path):
+                img = Image.open(path).resize((int(CELL_SIZE*0.9), int(CELL_SIZE*0.9)), Image.Resampling.LANCZOS)
+                self.images[symbol] = ImageTk.PhotoImage(img)
 
     def open_log_viewer(self):
         LogViewer(self.root)
@@ -283,6 +304,10 @@ class ChessGUI:
         self.canvas.delete("all")
         flip = hasattr(self, 'flip_board_var') and self.flip_board_var.get()
         
+        valid_moves = []
+        if self.selected_sq is not None:
+            valid_moves = [m.to_square for m in self.board.legal_moves if m.from_square == self.selected_sq]
+        
         for rank in range(8):
             for file in range(8):
                 draw_file = 7 - file if flip else file
@@ -308,31 +333,36 @@ class ChessGUI:
                 
                 self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="")
                 
+                # Draw valid move indicators
+                if sq in valid_moves:
+                    cx = x1 + CELL_SIZE/2
+                    cy = y1 + CELL_SIZE/2
+                    if self.board.piece_at(sq):
+                        self.canvas.create_oval(x1+4, y1+4, x2-4, y2-4, outline="#888888", width=5)
+                    else:
+                        r = CELL_SIZE * 0.15
+                        self.canvas.create_oval(cx-r, cy-r, cx+r, cy+r, fill="#888888", outline="")
+                
                 # Draw piece
                 piece = self.board.piece_at(sq)
                 if piece:
-                    text_color = "black" if piece.color == chess.BLACK else "white"
-                    # Using unicode for pieces
-                    symbol = PIECE_UNICODE[piece.symbol()]
-                    self.canvas.create_text(
-                        x1 + CELL_SIZE/2, y1 + CELL_SIZE/2,
-                        text=symbol, font=("Arial", int(CELL_SIZE * 0.7)),
-                        fill=text_color
-                    )
-                    # Add a slight shadow/outline for white pieces to be visible on light squares
-                    if piece.color == chess.WHITE:
+                    symbol = piece.symbol()
+                    if symbol in self.images:
+                        self.canvas.create_image(
+                            x1 + CELL_SIZE/2, y1 + CELL_SIZE/2,
+                            image=self.images[symbol],
+                            tags=f"piece_{sq}"
+                        )
+                    else:
+                        text_color = "black" if piece.color == chess.BLACK else "white"
+                        unicode_sym = PIECE_UNICODE[symbol]
                         self.canvas.create_text(
                             x1 + CELL_SIZE/2, y1 + CELL_SIZE/2,
-                            text=symbol, font=("Arial", int(CELL_SIZE * 0.7)),
-                            fill="black"
-                        )
-                        self.canvas.create_text(
-                            x1 + CELL_SIZE/2 - 1, y1 + CELL_SIZE/2 - 1,
-                            text=symbol, font=("Arial", int(CELL_SIZE * 0.7)),
-                            fill="white"
+                            text=unicode_sym, font=("Arial", int(CELL_SIZE * 0.7)),
+                            fill=text_color, tags=f"piece_{sq}"
                         )
 
-    def on_canvas_click(self, event):
+    def on_canvas_press(self, event):
         if self.is_engine_turn or self.board.is_game_over():
             return
             
@@ -349,19 +379,17 @@ class ChessGUI:
             
         sq = chess.square(file, rank)
         
-        if self.selected_sq is None:
-            piece = self.board.piece_at(sq)
-            if piece and piece.color == self.board.turn:
-                self.selected_sq = sq
-                self.draw_board()
+        piece = self.board.piece_at(sq)
+        if piece and piece.color == self.board.turn:
+            self.selected_sq = sq
+            self.drag_data["sq"] = sq
+            self.drag_data["x"] = event.x
+            self.drag_data["y"] = event.y
+            self.draw_board()
+            self.canvas.tag_raise(f"piece_{sq}")
         else:
-            if self.selected_sq == sq:
-                self.selected_sq = None
-                self.draw_board()
-            else:
+            if self.selected_sq is not None:
                 move = chess.Move(self.selected_sq, sq)
-                
-                # Check for promotion
                 if self.board.piece_at(self.selected_sq) and self.board.piece_at(self.selected_sq).piece_type == chess.PAWN:
                     if (self.board.turn == chess.WHITE and rank == 7) or (self.board.turn == chess.BLACK and rank == 0):
                         move = chess.Move(self.selected_sq, sq, promotion=chess.QUEEN)
@@ -370,12 +398,44 @@ class ChessGUI:
                     self.make_user_move(move)
                     self.log_move(move.uci(), "User")
                 else:
-                    piece = self.board.piece_at(sq)
-                    if piece and piece.color == self.board.turn:
-                        self.selected_sq = sq
-                    else:
-                        self.selected_sq = None
+                    self.selected_sq = None
                 self.draw_board()
+
+    def on_canvas_drag(self, event):
+        if self.drag_data["sq"] is not None:
+            dx = event.x - self.drag_data["x"]
+            dy = event.y - self.drag_data["y"]
+            self.canvas.move(f"piece_{self.drag_data['sq']}", dx, dy)
+            self.drag_data["x"] = event.x
+            self.drag_data["y"] = event.y
+
+    def on_canvas_release(self, event):
+        if self.drag_data["sq"] is not None:
+            file = event.x // CELL_SIZE
+            rank = 7 - (event.y // CELL_SIZE)
+            
+            flip = hasattr(self, 'flip_board_var') and self.flip_board_var.get()
+            if flip:
+                file = 7 - file
+                rank = 7 - rank
+                
+            sq = chess.square(file, rank)
+            if 0 <= file <= 7 and 0 <= rank <= 7 and sq != self.drag_data["sq"]:
+                move = chess.Move(self.drag_data["sq"], sq)
+                if self.board.piece_at(self.drag_data["sq"]) and self.board.piece_at(self.drag_data["sq"]).piece_type == chess.PAWN:
+                    if (self.board.turn == chess.WHITE and rank == 7) or (self.board.turn == chess.BLACK and rank == 0):
+                        move = chess.Move(self.drag_data["sq"], sq, promotion=chess.QUEEN)
+                
+                if move in self.board.legal_moves:
+                    self.make_user_move(move)
+                    self.log_move(move.uci(), "User")
+                else:
+                    self.selected_sq = None
+                    self.draw_board()
+            else:
+                self.draw_board()
+            
+            self.drag_data["sq"] = None
 
     def make_user_move(self, move):
         self.board.push(move)
