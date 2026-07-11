@@ -40,6 +40,18 @@ namespace Search {
     const int INF = 31000;
     const int MATE = 30000;
 
+    void clear_history() {
+        for (int i = 0; i < 2; i++)
+            for (int j = 0; j < 64; j++)
+                for (int k = 0; k < 64; k++)
+                    history[i][j][k] = 0;
+
+        for (int i = 0; i < 128; i++) {
+            killer_moves[i][0] = 0;
+            killer_moves[i][1] = 0;
+        }
+    }
+
     inline int score_to_tt(int score, int ply) {
         if (score >= MATE - 100) return score + ply;
         if (score <= -MATE + 100) return score - ply;
@@ -225,7 +237,12 @@ namespace Search {
                 if (victim != EMPTY_PIECE) captured_val = Eval::PieceValueMG[piece_type(victim)];
                 if (m.flags() >= N_PROMO) captured_val += Eval::PieceValueMG[QUEEN] - 100;
                 
-                // if (stand_pat + captured_val + 200 < alpha) continue;
+                if (stand_pat + captured_val + 200 <= alpha) {
+                    continue;
+                }
+                if (see(board, m) < 0) {
+                    continue;
+                }
             }
 
             board.make_move(m);
@@ -485,16 +502,6 @@ namespace Search {
         start_time = std::chrono::steady_clock::now();
         max_time_ms = time_limit_ms;
 
-        for (int i = 0; i < 2; i++)
-            for (int j = 0; j < 64; j++)
-                for (int k = 0; k < 64; k++)
-                    history[i][j][k] = 0;
-
-        for (int i = 0; i < 128; i++) {
-            killer_moves[i][0] = 0;
-            killer_moves[i][1] = 0;
-        }
-
         std::atomic<uint16_t> global_best_move(0);
 
         auto worker = [&](int thread_id) {
@@ -520,9 +527,11 @@ namespace Search {
                     if (time_over) break;
                     
                     if (score <= alpha) {
-                        alpha = -INF;
+                        alpha = std::max(-INF, alpha - delta);
+                        delta += delta / 2;
                     } else if (score >= beta) {
-                        beta = INF;
+                        beta = std::min(INF, beta + delta);
+                        delta += delta / 2;
                     } else {
                         break;
                     }

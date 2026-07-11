@@ -60,6 +60,7 @@ namespace UCI {
                 }
             } else if (token == "ucinewgame") {
                 TT.clear();
+                Search::clear_history();
             } else if (token == "position") {
                 std::string pos_type;
                 iss >> pos_type;

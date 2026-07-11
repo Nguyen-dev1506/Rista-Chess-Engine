@@ -11,6 +11,9 @@ namespace Search {
     extern std::chrono::time_point<std::chrono::steady_clock> start_time;
     extern int max_time_ms;
 
+    void init_LMR();
+    void clear_history();
+    int score_move(const Board& board, Move m, uint16_t tt_move, int ply);
     void start_search(Board& board, int depth_limit, int time_limit_ms, int num_threads = 1);
     uint64_t perft(Board& board, int depth);
 }

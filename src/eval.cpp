@@ -316,6 +316,15 @@ namespace Eval {
                                 mob_mg[color] += 20;
                                 mob_eg[color] += 10;
                             }
+                        } else {
+                            // Rook behind passed pawn bonus
+                            int p_sq = (color == WHITE) ? (63 - std::countl_zero(our_pawns & file_mask)) : std::countr_zero(our_pawns & file_mask);
+                            U64 front = get_front_span(color, static_cast<Square>(p_sq));
+                            if ((opp_pawns & front) == 0) { // It's a passed pawn
+                                if ((color == WHITE && sq < p_sq) || (color == BLACK && sq > p_sq)) {
+                                    mob_eg[color] += 30; // Rook behind passed pawn
+                                }
+                            }
                         }
                     }
 
@@ -363,22 +372,25 @@ namespace Eval {
                             U64 ks_zone = (file_mask | adj_files) & rank_mask;
                             
                             int ks_penalty = 0;
-                            const int shield_penalties[4] = { 60, 30, 10, 0 };
-                            int shield_count = std::min(3, popcount(our_pawns & ks_zone));
-                            ks_penalty += shield_penalties[shield_count];
                             
-                            // Open files near king (Dangerous if WE don't have a pawn)
-                            int open_files = 0;
-                            if ((our_pawns & file_mask) == 0) open_files++;
-                            if ((sq % 8) > 0 && (our_pawns & (file_mask >> 1)) == 0) open_files++;
-                            if ((sq % 8) < 7 && (our_pawns & (file_mask << 1)) == 0) open_files++;
-                            ks_penalty += open_files * 25; // Moderate penalty for missing our pawns
+                            // Penalize missing pawns directly in front of the king
+                            if ((our_pawns & file_mask) == 0) {
+                                ks_penalty += 80; // Very dangerous if king's own file is open
+                            } else {
+                                // Pawn shield bonus/penalty if the pawn is there but maybe pushed
+                                int shield_count = std::min(3, popcount(our_pawns & ((file_mask | adj_files) & rank_mask)));
+                                const int shield_penalties[4] = { 40, 20, 5, 0 };
+                                ks_penalty += shield_penalties[shield_count];
+                            }
+                            
+                            if ((sq % 8) > 0 && (our_pawns & (file_mask >> 1)) == 0) ks_penalty += 35;
+                            if ((sq % 8) < 7 && (our_pawns & (file_mask << 1)) == 0) ks_penalty += 35;
                             
                             // Heavy penalty if enemy rook/queen is on these open files
                             U64 enemy_heavy = board.pieces[(color == WHITE) ? B_ROOK : W_ROOK] | board.pieces[(color == WHITE) ? B_QUEEN : W_QUEEN];
-                            if (enemy_heavy & file_mask) ks_penalty += 20;
-                            if ((sq % 8) > 0 && (enemy_heavy & (file_mask >> 1))) ks_penalty += 15;
-                            if ((sq % 8) < 7 && (enemy_heavy & (file_mask << 1))) ks_penalty += 15;
+                            if (enemy_heavy & file_mask) ks_penalty += 60;
+                            if ((sq % 8) > 0 && (enemy_heavy & (file_mask >> 1))) ks_penalty += 30;
+                            if ((sq % 8) < 7 && (enemy_heavy & (file_mask << 1))) ks_penalty += 30;
 
                             // King Danger from enemy pieces attacking king ring
                             U64 king_ring = Bitboards::KingAttacks[sq];
@@ -429,14 +441,12 @@ namespace Eval {
             if (board.piece_on(G1) == W_KNIGHT) { mg[WHITE] -= 15; w_undeveloped++; }
             if (board.piece_on(C1) == W_BISHOP) { mg[WHITE] -= 15; w_undeveloped++; }
             if (board.piece_on(F1) == W_BISHOP) { mg[WHITE] -= 15; w_undeveloped++; }
-            if (board.piece_on(D1) != W_QUEEN && w_undeveloped >= 2) { mg[WHITE] -= 20; }
 
             int b_undeveloped = 0;
             if (board.piece_on(B8) == B_KNIGHT) { mg[BLACK] -= 15; b_undeveloped++; }
             if (board.piece_on(G8) == B_KNIGHT) { mg[BLACK] -= 15; b_undeveloped++; }
             if (board.piece_on(C8) == B_BISHOP) { mg[BLACK] -= 15; b_undeveloped++; }
             if (board.piece_on(F8) == B_BISHOP) { mg[BLACK] -= 15; b_undeveloped++; }
-            if (board.piece_on(D8) != B_QUEEN && b_undeveloped >= 2) { mg[BLACK] -= 20; }
         }
 
         int mgScore = mg[WHITE] - mg[BLACK];
