@@ -111,7 +111,7 @@ class ChessGUI:
         
         # Right Panel
         right_panel = tk.Frame(main_frame)
-        right_panel.pack(side=tk.LEFT, fill=tk.Y)
+        right_panel.pack(side=tk.LEFT, fill=tk.Y, padx=(10, 0))
         
         # Move Log
         lbl_frame = tk.Frame(right_panel)
@@ -202,7 +202,7 @@ class ChessGUI:
                 self.images[symbol] = ImageTk.PhotoImage(img)
 
     def open_log_viewer(self):
-        LogViewer(self.root)
+        LogViewer(self.root, self.images)
 
 
     def quit_all_engines(self):
@@ -669,7 +669,8 @@ class ChessGUI:
         self.root.destroy()
 
 class LogViewer:
-    def __init__(self, parent):
+    def __init__(self, parent, images):
+        self.images = images
         self.top = tk.Toplevel(parent)
         self.top.title("Game Log Viewer")
         
@@ -773,15 +774,37 @@ class LogViewer:
                 
                 piece = self.board.piece_at(sq)
                 if piece:
-                    text_color = "black" if piece.color == chess.BLACK else "white"
-                    symbol = PIECE_UNICODE[piece.symbol()]
-                    if piece.color == chess.WHITE:
-                        self.canvas.create_text(x1 + CELL_SIZE/2, y1 + CELL_SIZE/2, text=symbol, font=("Arial", int(CELL_SIZE * 0.7)), fill="black")
-                        self.canvas.create_text(x1 + CELL_SIZE/2 - 1, y1 + CELL_SIZE/2 - 1, text=symbol, font=("Arial", int(CELL_SIZE * 0.7)), fill="white")
+                    symbol = piece.symbol()
+                    if hasattr(self, 'images') and symbol in self.images:
+                        self.canvas.create_image(
+                            x1 + CELL_SIZE/2, y1 + CELL_SIZE/2,
+                            image=self.images[symbol]
+                        )
                     else:
-                        self.canvas.create_text(x1 + CELL_SIZE/2, y1 + CELL_SIZE/2, text=symbol, font=("Arial", int(CELL_SIZE * 0.7)), fill=text_color)
+                        text_color = "black" if piece.color == chess.BLACK else "white"
+                        unicode_sym = PIECE_UNICODE[symbol]
+                        if piece.color == chess.WHITE:
+                            self.canvas.create_text(x1 + CELL_SIZE/2, y1 + CELL_SIZE/2, text=unicode_sym, font=("Arial", int(CELL_SIZE * 0.7)), fill="black")
+                            self.canvas.create_text(x1 + CELL_SIZE/2 - 1, y1 + CELL_SIZE/2 - 1, text=unicode_sym, font=("Arial", int(CELL_SIZE * 0.7)), fill="white")
+                        else:
+                            self.canvas.create_text(x1 + CELL_SIZE/2, y1 + CELL_SIZE/2, text=unicode_sym, font=("Arial", int(CELL_SIZE * 0.7)), fill=text_color)
 
 if __name__ == "__main__":
     root = tk.Tk()
+    root.geometry("800x520")
+    
     app = ChessGUI(root)
+    
+    logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo.png")
+    if os.path.exists(logo_path):
+        img = Image.open(logo_path).resize((520, 520), Image.Resampling.LANCZOS)
+        splash_img = ImageTk.PhotoImage(img)
+        root.splash_img = splash_img
+        
+        splash_label = tk.Label(root, image=splash_img, borderwidth=0, bg="#89C4F4")
+        splash_label.place(x=0, y=0, relwidth=1, relheight=1)
+        splash_label.lift()
+        
+        root.after(2000, splash_label.destroy)
+        
     root.mainloop()

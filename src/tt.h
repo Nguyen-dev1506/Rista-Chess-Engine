@@ -10,7 +10,7 @@ enum TTFlag {
     TT_BETA
 };
 
-struct TTEntry {
+struct alignas(16) TTEntry {
     U64 key;            // 8 bytes
     int16_t score;      // 2 bytes
     uint16_t best_move; // 2 bytes
@@ -29,11 +29,18 @@ public:
     bool probe(U64 key, int depth, int alpha, int beta, int& score, uint16_t& best_move, int ply);
     void store(U64 key, int depth, int score, TTFlag flag, uint16_t best_move);
     uint16_t probe_move(U64 key);
+    
+    inline void prefetch(U64 key) const {
+        if (!table.empty()) {
+            __builtin_prefetch(&table[key & mask]);
+        }
+    }
 
     size_t size() const { return table.size(); }
 
 private:
     std::vector<TTEntry> table;
+    size_t mask = 0;
     uint8_t current_age = 0;
 };
 

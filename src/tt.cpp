@@ -7,7 +7,13 @@ TranspositionTable::TranspositionTable(size_t size_mb) {
 }
 
 void TranspositionTable::resize(size_t size_mb) {
-    size_t num_entries = (size_mb * 1024 * 1024) / sizeof(TTEntry);
+    size_t target_entries = (size_mb * 1024 * 1024) / sizeof(TTEntry);
+    size_t num_entries = 1;
+    while (num_entries <= target_entries) num_entries *= 2;
+    num_entries /= 2;
+    if (num_entries < 1) num_entries = 1;
+    
+    mask = num_entries - 1;
     table.resize(num_entries);
     clear();
 }
@@ -25,7 +31,7 @@ void TranspositionTable::clear() {
 
 bool TranspositionTable::probe(U64 key, int depth, int alpha, int beta, int& score, uint16_t& best_move, int ply) {
     if (table.empty()) return false;
-    TTEntry& entry = table[key % table.size()];
+    TTEntry& entry = table[key & mask];
     
     if (entry.key == key) {
         best_move = entry.best_move;
@@ -54,7 +60,7 @@ bool TranspositionTable::probe(U64 key, int depth, int alpha, int beta, int& sco
 
 void TranspositionTable::store(U64 key, int depth, int score, TTFlag flag, uint16_t best_move) {
     if (table.empty()) return;
-    TTEntry& entry = table[key % table.size()];
+    TTEntry& entry = table[key & mask];
     
     uint8_t entry_age = entry.flag_age >> 2;
     
@@ -81,7 +87,7 @@ void TranspositionTable::store(U64 key, int depth, int score, TTFlag flag, uint1
 
 uint16_t TranspositionTable::probe_move(U64 key) {
     if (table.empty()) return 0;
-    TTEntry& entry = table[key % table.size()];
+    TTEntry& entry = table[key & mask];
     if (entry.key == key) {
         return entry.best_move;
     }

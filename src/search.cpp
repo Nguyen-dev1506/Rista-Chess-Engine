@@ -28,7 +28,7 @@ namespace Search {
         for (int d = 0; d < 64; d++) {
             for (int m = 0; m < 64; m++) {
                 if (d >= 3 && m >= 2) {
-                    LMR[d][m] = 1 + std::log(d) * std::log(m) / 1.95;
+                    LMR[d][m] = 1 + std::log(d) * std::log(m) / 1.75;
                 } else {
                     LMR[d][m] = 0;
                 }
@@ -201,6 +201,8 @@ namespace Search {
         if (ply >= 127) return Eval::evaluate(board);
         static thread_local int local_nodes_count = 0; local_nodes_count++; if(local_nodes_count >= 1024) { nodes.fetch_add(1024, std::memory_order_relaxed); local_nodes_count = 0; check_time(); }
 
+        TT.prefetch(board.hash_key);
+
         int original_alpha = alpha;
         uint16_t tt_move = 0;
         int tt_score = 0;
@@ -294,6 +296,8 @@ namespace Search {
         
         if (ply > 0 && is_draw(board)) return 0;
 
+        TT.prefetch(board.hash_key);
+
         int original_alpha = alpha;
         
         uint16_t tt_move = 0;
@@ -321,13 +325,13 @@ namespace Search {
         int non_pawn_count = std::popcount(non_pawn);
 
         if (!in_check && depth < 3 && std::abs(beta) < MATE - 100) {
-            int margin = 120 * depth; 
+            int margin = 75 * depth; 
             if (eval - margin >= beta) {
-                return eval - margin;
+                return eval;
             }
         }
 
-        if (depth >= 4 && tt_move == 0 && !in_check) {
+        if (depth >= 4 && tt_move == 0 && !in_check && is_pv) {
             int R = depth - 2;
             negamax(board, R, ply, alpha, beta, false, root_depth);
             tt_move = TT.probe_move(board.hash_key);
@@ -420,11 +424,11 @@ namespace Search {
                 int R = 0;
                 if (depth >= 3 && !in_check && !gives_check && !is_capture && is_quiet && m.move != killer_moves[ply][0]) {
                     R = LMR[std::min(63, depth)][std::min(63, legal_moves)];
-                    if (is_pv) R--;
+                    if (!is_pv) R++;
                     
                     int hist = history[stm][m.from()][m.to()].load(std::memory_order_relaxed);
-                    if (hist > 10000) R--;
-                    else if (hist < 0) R++;
+                    if (hist > 4000) R--;
+                    else if (hist < -4000) R++;
                     
                     R = std::max(0, R);
                 }
@@ -456,21 +460,17 @@ namespace Search {
                                 killer_moves[ply][1] = killer_moves[ply][0].load();
                                 killer_moves[ply][0] = m.move;
                             }
-                            int bonus = depth * depth;
-                            history[stm][m.from()][m.to()] += bonus;
+                            int bonus = std::min(300, depth * depth);
+                            
+                            int v = history[stm][m.from()][m.to()].load(std::memory_order_relaxed);
+                            history[stm][m.from()][m.to()].store(v + bonus - v * std::abs(bonus) / 16384, std::memory_order_relaxed);
                             
                             for (int qi = 0; qi < num_quiet_searched; qi++) {
                                 Move qm(quiet_searched[qi]);
                                 if (qm.move != m.move) {
-                                    history[stm][qm.from()][qm.to()] -= bonus;
+                                    int qv = history[stm][qm.from()][qm.to()].load(std::memory_order_relaxed);
+                                    history[stm][qm.from()][qm.to()].store(qv - bonus - qv * std::abs(bonus) / 16384, std::memory_order_relaxed);
                                 }
-                            }
-                            
-                            if (history[stm][m.from()][m.to()] > 1000000) {
-                                for(int c=0; c<2; c++)
-                                    for(int f=0; f<64; f++)
-                                        for(int t=0; t<64; t++)
-                                            history[c][f][t].store(history[c][f][t].load(std::memory_order_relaxed) / 2, std::memory_order_relaxed);
                             }
                         }
                         break;
@@ -494,7 +494,7 @@ namespace Search {
         return best_score;
     }
 
-    void start_search(Board& board, int depth_limit, int time_limit_ms, int num_threads) {
+    void start_search(Board board, int depth_limit, int time_limit_ms, int num_threads) {
         init_LMR();
         TT.new_search();
         nodes = 0;
@@ -511,7 +511,7 @@ namespace Search {
             for (int d = 1; d <= depth_limit; d++) {
                 int alpha = -INF;
                 int beta = INF;
-                int delta = 25;
+                int delta = 15;
                 
                 if (d >= 4) {
                     alpha = std::max(-INF, best_score - delta);
@@ -528,10 +528,10 @@ namespace Search {
                     
                     if (score <= alpha) {
                         alpha = std::max(-INF, alpha - delta);
-                        delta += delta / 2;
+                        delta += delta;
                     } else if (score >= beta) {
                         beta = std::min(INF, beta + delta);
-                        delta += delta / 2;
+                        delta += delta;
                     } else {
                         break;
                     }
@@ -606,12 +606,15 @@ namespace Search {
         if (best_move == 0) {
             MoveList list;
             MoveGen::generate_pseudo_legal(board, list, false);
+            int max_score = -INF;
             for(int i = 0; i < list.count; i++) {
                 board.make_move(list.moves[i]);
                 if (!board.is_in_check((board.side_to_move == WHITE) ? BLACK : WHITE)) {
-                    best_move = list.moves[i].move;
-                    board.unmake_move(list.moves[i]);
-                    break;
+                    int score = -quiescence(board, -INF, INF, 1);
+                    if (score > max_score || best_move == 0) {
+                        max_score = score;
+                        best_move = list.moves[i].move;
+                    }
                 }
                 board.unmake_move(list.moves[i]);
             }
@@ -627,7 +630,7 @@ namespace Search {
             if (m.flags() == B_PROMO || m.flags() == B_PROMO_CAP) std::cout << 'b';
             if (m.flags() == N_PROMO || m.flags() == N_PROMO_CAP) std::cout << 'n';
         }
-        std::cout << "\n";
+        std::cout << std::endl;
     }
 
     uint64_t perft(Board& board, int depth) {

@@ -6,6 +6,7 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <thread>
 
 namespace UCI {
     Move parse_move(Board& board, const std::string& move_str) {
@@ -36,6 +37,8 @@ namespace UCI {
     void loop() {
         std::string line;
         Board board;
+        int num_threads = 1;
+        std::thread search_thread;
         
         while (std::getline(std::cin, line)) {
             std::istringstream iss(line);
@@ -46,6 +49,7 @@ namespace UCI {
                 std::cout << "id name Rista (Bitboard C++20)\n";
                 std::cout << "id author You\n";
                 std::cout << "option name Hash type spin default 16 min 1 max 1024\n";
+                std::cout << "option name Threads type spin default 1 min 1 max 128\n";
                 std::cout << "uciok\n";
             } else if (token == "isready") {
                 std::cout << "readyok\n";
@@ -57,11 +61,21 @@ namespace UCI {
                 iss >> value;
                 if (name == "Hash") {
                     TT.resize(std::stoi(value));
+                } else if (name == "Threads") {
+                    num_threads = std::stoi(value);
                 }
             } else if (token == "ucinewgame") {
+                if (search_thread.joinable()) {
+                    Search::time_over = true;
+                    search_thread.join();
+                }
                 TT.clear();
                 Search::clear_history();
             } else if (token == "position") {
+                if (search_thread.joinable()) {
+                    Search::time_over = true;
+                    search_thread.join();
+                }
                 std::string pos_type;
                 iss >> pos_type;
                 if (pos_type == "startpos") {
@@ -108,7 +122,17 @@ namespace UCI {
                         if (time < 50) time = 50;
                     }
                 }
-                Search::start_search(board, depth, time);
+                if (search_thread.joinable()) {
+                    Search::time_over = true;
+                    search_thread.join();
+                }
+                Search::time_over = false;
+                search_thread = std::thread(Search::start_search, board, depth, time, num_threads);
+            } else if (token == "stop") {
+                Search::time_over = true;
+                if (search_thread.joinable()) {
+                    search_thread.join();
+                }
             } else if (token == "perft") {
                 int depth = 5;
                 if (iss >> token) depth = std::stoi(token);
@@ -121,6 +145,10 @@ namespace UCI {
             } else if (token == "d") {
                 board.print();
             } else if (token == "quit") {
+                Search::time_over = true;
+                if (search_thread.joinable()) {
+                    search_thread.join();
+                }
                 break;
             }
         }
