@@ -361,22 +361,24 @@ namespace Eval {
                             
                             U64 rank_mask = (color == WHITE) ? 0x00000000FFFFFF00ULL : 0x00FFFFFF00000000ULL;
                             U64 ks_zone = (file_mask | adj_files) & rank_mask;
-                            const int shield_penalty[4] = { -40, -20, -5, 0 };
+                            
+                            int ks_penalty = 0;
+                            const int shield_penalties[4] = { 60, 30, 10, 0 };
                             int shield_count = std::min(3, popcount(our_pawns & ks_zone));
-                            ks_mg[color] += shield_penalty[shield_count];
+                            ks_penalty += shield_penalties[shield_count];
                             
                             // Open files near king (Dangerous if WE don't have a pawn)
                             int open_files = 0;
                             if ((our_pawns & file_mask) == 0) open_files++;
                             if ((sq % 8) > 0 && (our_pawns & (file_mask >> 1)) == 0) open_files++;
                             if ((sq % 8) < 7 && (our_pawns & (file_mask << 1)) == 0) open_files++;
-                            ks_mg[color] -= open_files * 15; // Moderate penalty for missing our pawns
+                            ks_penalty += open_files * 25; // Moderate penalty for missing our pawns
                             
                             // Heavy penalty if enemy rook/queen is on these open files
                             U64 enemy_heavy = board.pieces[(color == WHITE) ? B_ROOK : W_ROOK] | board.pieces[(color == WHITE) ? B_QUEEN : W_QUEEN];
-                            if (enemy_heavy & file_mask) ks_mg[color] -= 15;
-                            if ((sq % 8) > 0 && (enemy_heavy & (file_mask >> 1))) ks_mg[color] -= 10;
-                            if ((sq % 8) < 7 && (enemy_heavy & (file_mask << 1))) ks_mg[color] -= 10;
+                            if (enemy_heavy & file_mask) ks_penalty += 20;
+                            if ((sq % 8) > 0 && (enemy_heavy & (file_mask >> 1))) ks_penalty += 15;
+                            if ((sq % 8) < 7 && (enemy_heavy & (file_mask << 1))) ks_penalty += 15;
 
                             // King Danger from enemy pieces attacking king ring
                             U64 king_ring = Bitboards::KingAttacks[sq];
@@ -404,10 +406,12 @@ namespace Eval {
                             }
                             
                             if (attack_units > 0) {
-                                const int danger_table[15] = {0, 0, 5, 10, 20, 35, 55, 80, 110, 145, 185, 230, 280, 340, 400};
-                                int danger = danger_table[std::min(14, attack_units)];
-                                ks_mg[color] -= danger;
+                                const int danger_table[15] = {0, 0, 10, 20, 35, 55, 80, 110, 145, 185, 230, 280, 335, 400, 470};
+                                ks_penalty += danger_table[std::min(14, attack_units)];
                             }
+                            
+                            // Cap the penalty so engine does not sacrifice full pieces just for king safety
+                            ks_mg[color] -= std::min(ks_penalty, 280);
                         }
                     }
                 }
