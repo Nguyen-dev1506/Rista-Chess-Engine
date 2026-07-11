@@ -1058,3 +1058,69 @@ DEBUG:root:>>> uci
 DEBUG:root:>>> isready 
 DEBUG:root:>>> ucinewgame 
 DEBUG:root:>>> position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 
+DEBUG:root:>>> uci 
+DEBUG:root:>>> isready 
+DEBUG:root:>>> ucinewgame 
+DEBUG:root:>>> position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 c6d4 d5d6 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 c6d4 d5d6 d4e6 g5e6 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 c6d4 d5d6 d4e6 g5e6 c8e6 c4e6 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 c6d4 d5d6 d4e6 g5e6 c8e6 c4e6 f7e6 d1f3 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 c6d4 d5d6 d4e6 g5e6 c8e6 c4e6 f7e6 d1f3 d8d7 d2d3 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 c6d4 d5d6 d4e6 g5e6 c8e6 c4e6 f7e6 d1f3 d8d7 d2d3 f8d6 f1e1 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 c6d4 d5d6 d4e6 g5e6 c8e6 c4e6 f7e6 d1f3 d8d7 d2d3 f8d6 f1e1 e8g8 f3h3 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 c6d4 d5d6 d4e6 g5e6 c8e6 c4e6 f7e6 d1f3 d8d7 d2d3 f8d6 f1e1 e8g8 f3h3 a8e8 c1e3 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 c6d4 d5d6 d4e6 g5e6 c8e6 c4e6 f7e6 d1f3 d8d7 d2d3 f8d6 f1e1 e8g8 f3h3 a8e8 c1e3 a7a6 c3e4 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 c6d4 d5d6 d4e6 g5e6 c8e6 c4e6 f7e6 d1f3 d8d7 d2d3 f8d6 f1e1 e8g8 f3h3 a8e8 c1e3 a7a6 c3e4 f6e4 d3e4 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 c6d4 d5d6 d4e6 g5e6 c8e6 c4e6 f7e6 d1f3 d8d7 d2d3 f8d6 f1e1 e8g8 f3h3 a8e8 c1e3 a7a6 c3e4 f6e4 d3e4 h7h6 a1d1 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 c6d4 d5d6 d4e6 g5e6 c8e6 c4e6 f7e6 d1f3 d8d7 d2d3 f8d6 f1e1 e8g8 f3h3 a8e8 c1e3 a7a6 c3e4 f6e4 d3e4 h7h6 a1d1 d7c6 h3h5 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 c6d4 d5d6 d4e6 g5e6 c8e6 c4e6 f7e6 d1f3 d8d7 d2d3 f8d6 f1e1 e8g8 f3h3 a8e8 c1e3 a7a6 c3e4 f6e4 d3e4 h7h6 a1d1 d7c6 h3h5 e8d8 e3h6 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 c6d4 d5d6 d4e6 g5e6 c8e6 c4e6 f7e6 d1f3 d8d7 d2d3 f8d6 f1e1 e8g8 f3h3 a8e8 c1e3 a7a6 c3e4 f6e4 d3e4 h7h6 a1d1 d7c6 h3h5 e8d8 e3h6 g7h6 h5g6 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 c6d4 d5d6 d4e6 g5e6 c8e6 c4e6 f7e6 d1f3 d8d7 d2d3 f8d6 f1e1 e8g8 f3h3 a8e8 c1e3 a7a6 c3e4 f6e4 d3e4 h7h6 a1d1 d7c6 h3h5 e8d8 e3h6 g7h6 h5g6 g8h8 g6h6 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 c6d4 d5d6 d4e6 g5e6 c8e6 c4e6 f7e6 d1f3 d8d7 d2d3 f8d6 f1e1 e8g8 f3h3 a8e8 c1e3 a7a6 c3e4 f6e4 d3e4 h7h6 a1d1 d7c6 h3h5 e8d8 e3h6 g7h6 h5g6 g8h8 g6h6 h8g8 h6g6 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 c6d4 d5d6 d4e6 g5e6 c8e6 c4e6 f7e6 d1f3 d8d7 d2d3 f8d6 f1e1 e8g8 f3h3 a8e8 c1e3 a7a6 c3e4 f6e4 d3e4 h7h6 a1d1 d7c6 h3h5 e8d8 e3h6 g7h6 h5g6 g8h8 g6h6 h8g8 h6g6 g8h8 e1e3 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 c6d4 d5d6 d4e6 g5e6 c8e6 c4e6 f7e6 d1f3 d8d7 d2d3 f8d6 f1e1 e8g8 f3h3 a8e8 c1e3 a7a6 c3e4 f6e4 d3e4 h7h6 a1d1 d7c6 h3h5 e8d8 e3h6 g7h6 h5g6 g8h8 g6h6 h8g8 h6g6 g8h8 e1e3 f8f3 e3f3 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c5 b1c3 e7e5 g1f3 b8c6 f1c4 d7d6 e1g1 g8f6 f3g5 d6d5 e4d5 c6d4 d5d6 d4e6 g5e6 c8e6 c4e6 f7e6 d1f3 d8d7 d2d3 f8d6 f1e1 e8g8 f3h3 a8e8 c1e3 a7a6 c3e4 f6e4 d3e4 h7h6 a1d1 d7c6 h3h5 e8d8 e3h6 g7h6 h5g6 g8h8 g6h6 h8g8 h6g6 g8h8 e1e3 f8f3 e3f3 d6e7 f3h3 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> uci 
+DEBUG:root:>>> isready 
+DEBUG:root:>>> ucinewgame 
+DEBUG:root:>>> position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 
+DEBUG:root:>>> position startpos moves e2e4 c7c6 g1f3 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c6 g1f3 d7d5 e4e5 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c6 g1f3 d7d5 e4e5 c8f5 d2d4 
+DEBUG:root:>>> go depth 6 
+DEBUG:root:>>> position startpos moves e2e4 c7c6 g1f3 d7d5 e4e5 c8f5 d2d4 e7e6 b1c3 
+DEBUG:root:>>> go depth 6 

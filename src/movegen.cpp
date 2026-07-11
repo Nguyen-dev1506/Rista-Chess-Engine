@@ -9,26 +9,31 @@ namespace MoveGen {
         
         // Single push
         U64 push1 = (us == WHITE) ? ((pawns << 8) & empty) : ((pawns >> 8) & empty);
-        U64 push2 = 0;
+        
+        U64 promo_mask = (us == WHITE) ? 0xFF00000000000000ULL : 0x00000000000000FFULL;
+        U64 push1_promo = push1 & promo_mask;
+        U64 push1_quiet = push1 & ~promo_mask;
+        
+        while (push1_promo) {
+            int to = pop_lsb(push1_promo);
+            int from = (us == WHITE) ? to - 8 : to + 8;
+            list.add(Move(static_cast<Square>(from), static_cast<Square>(to), Q_PROMO));
+            list.add(Move(static_cast<Square>(from), static_cast<Square>(to), R_PROMO));
+            list.add(Move(static_cast<Square>(from), static_cast<Square>(to), B_PROMO));
+            list.add(Move(static_cast<Square>(from), static_cast<Square>(to), N_PROMO));
+        }
         
         if (!captures_only) {
             // Double push
             U64 rank3 = (us == WHITE) ? 0x0000000000FF0000ULL : 0;
             U64 rank6 = (us == BLACK) ? 0x0000FF0000000000ULL : 0;
-            push2 = (us == WHITE) ? (((push1 & rank3) << 8) & empty) : (((push1 & rank6) >> 8) & empty);
+            U64 push2 = (us == WHITE) ? (((push1 & rank3) << 8) & empty) : (((push1 & rank6) >> 8) & empty);
             
-            U64 p1 = push1, p2 = push2;
+            U64 p1 = push1_quiet, p2 = push2;
             while (p1) {
                 int to = pop_lsb(p1);
                 int from = (us == WHITE) ? to - 8 : to + 8;
-                if ((us == WHITE && to >= A8) || (us == BLACK && to <= H1)) {
-                    list.add(Move(static_cast<Square>(from), static_cast<Square>(to), Q_PROMO));
-                    list.add(Move(static_cast<Square>(from), static_cast<Square>(to), R_PROMO));
-                    list.add(Move(static_cast<Square>(from), static_cast<Square>(to), B_PROMO));
-                    list.add(Move(static_cast<Square>(from), static_cast<Square>(to), N_PROMO));
-                } else {
-                    list.add(Move(static_cast<Square>(from), static_cast<Square>(to), QUIET));
-                }
+                list.add(Move(static_cast<Square>(from), static_cast<Square>(to), QUIET));
             }
             while (p2) {
                 int to = pop_lsb(p2);

@@ -114,7 +114,11 @@ class ChessGUI:
         right_panel.pack(side=tk.LEFT, fill=tk.Y)
         
         # Move Log
-        tk.Label(right_panel, text="Move Log").pack(anchor=tk.W)
+        lbl_frame = tk.Frame(right_panel)
+        lbl_frame.pack(fill=tk.X)
+        tk.Label(lbl_frame, text="Move Log").pack(side=tk.LEFT)
+        tk.Button(lbl_frame, text="Export PGN", command=self.export_pgn).pack(side=tk.RIGHT)
+        
         self.log_text = scrolledtext.ScrolledText(right_panel, width=30, height=12, state=tk.DISABLED)
         self.log_text.pack(fill=tk.Y, pady=(0, 10))
         
@@ -151,6 +155,42 @@ class ChessGUI:
         self.status_label.pack(fill=tk.X, pady=5)
         
         self.draw_board()
+
+    def export_pgn(self):
+        import chess.pgn
+        game = chess.pgn.Game()
+        game.headers["Event"] = "Rista Chess Match"
+        game.headers["White"] = getattr(self, 'white_player', 'User')
+        game.headers["Black"] = getattr(self, 'black_player', 'User')
+        game.headers["Result"] = self.board.result()
+        
+        node = game
+        temp_board = chess.Board()
+        for uci in self.move_history:
+            try:
+                move = chess.Move.from_uci(uci)
+                if move in temp_board.legal_moves:
+                    node = node.add_variation(move)
+                    temp_board.push(move)
+            except:
+                pass
+                
+        pgn_text = str(game)
+        
+        top = tk.Toplevel(self.root)
+        top.title("Export PGN")
+        
+        text_area = scrolledtext.ScrolledText(top, width=50, height=20)
+        text_area.pack(padx=10, pady=10)
+        text_area.insert(tk.END, pgn_text)
+        
+        def copy_to_clipboard():
+            self.root.clipboard_clear()
+            self.root.clipboard_append(pgn_text)
+            self.root.update()
+            messagebox.showinfo("Copied", "PGN has been copied to clipboard!", parent=top)
+            
+        tk.Button(top, text="Copy to Clipboard", command=copy_to_clipboard).pack(pady=5)
 
     def load_images(self):
         script_dir = os.path.dirname(os.path.abspath(__file__))
