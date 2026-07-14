@@ -1,7 +1,7 @@
 # 🐟 Rista Chess Engine - Sát Thủ Cờ Vua Lấy Cảm Hứng Từ Loài Cá Lóc!
 
 <div align="center">
-  <img src="Thanh_tich_Rista/rista_logo.png" alt="Rista Logo" width="300"/>
+  <img src="gui/logo.png" alt="Rista Logo" width="300"/>
 </div>
 
 Chào mừng bạn đến với **Rista**, một Chess Engine được viết hoàn toàn bằng **C++ siêu tốc độ**, kết hợp với một chiếc GUI xinh xắn bằng **Python Tkinter**. Nếu bạn đang tìm kiếm một con bot cờ vua có khả năng tính toán vượt trội, thích "đập" luôn cả các bot khác, thì bạn đến đúng chỗ rồi đấy!
@@ -29,36 +29,34 @@ Dưới đây là một số hình ảnh chứng minh sức mạnh của bé Cá
 
 ---
 
-## 🚀 Tính năng nổi bật của Engine
+## 🚀 Tính năng nổi bật và Các Thuật Toán Xương Sống
 
-- **Kiến trúc Lõi C++ Bitboard**: Xử lý bằng hệ thống Bitboard 64-bit hiện đại (Magic Bitboards), Rista chạy nhanh và càn quét các nhánh cờ như một con cá lóc đang săn mồi.
-- **Sinh Nước Đi Thông Minh (Move Generation)**: Khả năng bắt quân trượt, nhập thành, phong cấp, và ăn tốt qua đường (En Passant) chuẩn không cần chỉnh.
-- **Tối Ưu Tìm Kiếm (Search & Pruning)**:
-  - Trang bị thuật toán **Negamax** kết hợp Cắt tỉa **Alpha-Beta Pruning**.
-  - **Quiescence Search**: Chống lại "Horizon Effect" (Mù chân trời) — căn bệnh nan y khiến các engine ngớ ngẩn đút quân vào mồm đối thủ!
-  - **ProbCut & SEE Pruning**: Tự động đánh giá chớp nhoáng và mạnh tay chặt bỏ những nhánh cờ "hiến quân mù quáng" để tập trung vào các nhánh tinh hoa.
-  - **Capture History**: Học hỏi từ các nước ăn quân lịch sử gây đột biến để tối ưu thứ tự xét nước đi (Move Ordering).
-- **Transposition Table (Bộ Nhớ Băm)**: Tích hợp Zobrist Hashing giúp Rista lưu lại các thế trận đã tính toán qua, giảm tải hàng triệu nút dư thừa và đẩy nhanh độ sâu (Depth).
-- **Sách Khai Cuộc (Opening Book)**: Tự động tra cứu Polyglot `.bin` để đưa ra các khai cuộc đa dạng, thoát khỏi sự rập khuôn máy móc.
-- **Giao Thức UCI Chuẩn Quốc Tế**: Tương thích hoàn toàn với Universal Chess Interface, dễ dàng cắm vào mọi GUI trên thị trường.
+Đằng sau khả năng di chuyển linh hoạt của Rista là một hệ thống thuật toán C++ được tối ưu đến từng bit:
+
+- **Kiến trúc Lõi C++ Bitboard**: Thay vì dùng mảng 2 chiều truyền thống, Rista biểu diễn toàn bộ bàn cờ bằng các số nguyên 64-bit (Bitboards). Việc này cho phép nó thực hiện các phép toán logic học bit (AND, OR, XOR) để sinh nước đi cực kỳ thần tốc.
+- **Sinh Nước Đi (Move Generation)**: Bắt quân trượt, nhập thành, phong cấp, và ăn tốt qua đường (En Passant) chuẩn xác và cực kỳ tối ưu qua Magic Bitboards.
+- **Thuật Toán Tìm Kiếm & Cắt Tỉa (Search & Pruning)**:
+  - **Negamax & Alpha-Beta Pruning**: Thuật toán cốt lõi giúp Rista xây dựng cây trò chơi, giả định đối thủ luôn đi nước cờ hoàn hảo nhất để tìm ra chuỗi nước đi tối ưu, đồng thời cắt tỉa đi hàng triệu nhánh vô vọng mà không cần xét tới.
+  - **Quiescence Search**: Chống lại căn bệnh nan y "Horizon Effect" (Mù chân trời). Thuật toán này buộc Rista phải tìm kiếm sâu thêm (chỉ xét các nước ăn quân) ở cuối cây để đảm bảo không bỏ sót các pha giăng bẫy bắt hậu.
+  - **ProbCut**: Rista sẽ thử đánh giá nhanh một nhánh ở độ sâu nông hơn. Nếu kết quả quá tệ hoặc quá tốt so với ngưỡng, nó lập tức "chặt đứt" luôn nhánh đó để tiết kiệm thời gian cho các nước đi tiềm năng hơn.
+  - **SEE (Static Exchange Evaluation) Pruning**: Hàm đánh giá tĩnh xem xét một pha trao đổi quân trên bàn cờ. Nhờ SEE, Rista biết từ chối những pha hiến quân mù quáng (ví dụ: lấy Hậu đi ăn Chốt có bảo vệ) để không tốn Node tính toán.
+  - **Capture History**: Rista học hỏi từ quá khứ! Nếu một đòn ăn quân ở nhánh trước đó gây ra sự thay đổi điểm số đột biến (Cutoff), nó sẽ ưu tiên xét nước đi đó đầu tiên ở các nhánh tiếp theo.
+- **Transposition Table (Bộ Nhớ Băm Zobrist Hashing)**: Gắn mỗi thế cờ một mã ID 64-bit độc nhất. Nhờ vậy, nếu Rista gặp lại một thế cờ cũ thông qua một chuỗi nước đi khác, nó sẽ lấy luôn kết quả từ bộ nhớ thay vì phải vắt óc tính lại từ đầu.
+- **Sách Khai Cuộc (Opening Book)**: Tự động tra cứu tệp định dạng Polyglot `.bin` để đa dạng hoá khai cuộc, giúp Rista không bị bắt bài.
 
 ---
 
 ## 🎮 Giao Diện Python GUI (Rista GUI) Đa Năng
 
-Rista đi kèm với một giao diện `rista_gui.py` được thiết kế riêng. Không chỉ là một bàn cờ vô hồn, nó là một "sân vận động" đầy đủ tiện nghi:
+Rista đi kèm với một giao diện `rista_gui.py` cực kỳ đa năng. Nó không chỉ là nơi bạn đọ sức, mà còn là một đấu trường thực thụ:
 
-- **Tương Tác Kéo-Thả (Drag & Drop) Mượt Mà:** Trải nghiệm người dùng chân thực, cầm quân cờ kéo đi cực mượt mà không độ trễ. Thiết kế thân thiện với màu sắc hài hòa.
-- **Theo Dõi Tư Duy Rista (Engine Log):** Tích hợp cửa sổ Terminal Log ngay trong GUI, hiển thị trực tiếp dòng thời gian Rista đang suy nghĩ (Độ sâu Depth, Điểm số, Nodes per second, và đặc biệt là Principal Variation - nhánh cờ mà Rista tính toán sâu nhất).
-- **Thư Viện Đồ Họa Cờ Vua:** Các quân cờ (pieces) dạng SVG siêu nét, hỗ trợ mọi độ phân giải.
-- **Chế độ PvP / PvE Đa Dạng:** Cho phép bạn vào "ăn hành" trực tiếp với Rista (chế độ **Play as White vs Rista**), hoặc tổ chức các trận tử chiến giữa Rista và những Bot cờ khác (như Sunfish).
+- **Đấu Trường Của Các Engine (PvE)**: Bạn có thể mời **tất cả các Chess Engine chuẩn UCI khác** (như Stockfish, Fruit, Sunfish...) vào làm khách mời đặc biệt! Rista GUI sẽ đứng ra làm trọng tài tổ chức trận huyết chiến giữa Rista và các Engine này để xem ai mới là kẻ mạnh nhất.
+- **Tương Tác Kéo-Thả (Drag & Drop) Mượt Mà:** Chơi cờ như một con người thực sự, kéo thả quân cờ cực kỳ trực quan với màu sắc êm dịu, không hề có độ trễ.
+- **Theo Dõi Tư Duy Rista (Engine Log):** Khung Log Terminal tích hợp ngay trong GUI hiển thị "não bộ" của Rista theo thời gian thực (Độ sâu Depth, Điểm số Centipawns, Tốc độ Nodes/giây, và Principal Variation - nhánh cờ tối ưu đang được ủ mưu).
 
-### Câu chuyện về trận đại chiến: Rista 🥊 Sunfish
-Chúng tôi đã từng mời một vị khách đặc biệt là `sunfish.py` (một chess engine khá nổi tiếng bằng Python) vào giao diện để "so găng". 
-Nhưng để đi đến chiến thắng, Rista đã phải trải qua một quá trình tu luyện gian khổ:
-1. Rista từng bị một **Bug rò rỉ điểm Material Score trí mạng** (Mỗi lần nhẩm tính nước Phong Cấp ảo, nó tự trừ của mình đi 100 điểm cho đến khi điểm âm vô cực). Điều này khiến Rista bị trầm cảm và tự nguyện dâng Tốt đi tự sát (ví dụ như nước đi ngớ ngẩn `2...c4?` trong khai cuộc Sicilian).
-2. Sau một buổi chẩn đoán gắt gao, chúng tôi đã "chữa lành" cho Rista.
-3. **Kết quả?** Khi vừa bước vào võ đài, Rista (bằng C++ tối ưu) đã tính trước tận Depth 6 chỉ trong chớp mắt và hạ nốc ao bé Cá Thái Dương (Sunfish) một cách không thương tiếc! 🏆
+### Câu chuyện về sự tiến hóa của Rista
+Ngày xửa ngày xưa, ở những phiên bản đầu, Rista từng bị một **Bug rò rỉ điểm Material Score trí mạng** (Mỗi lần nhẩm tính nước Phong Cấp ảo, nó tự trừ của mình đi 100 điểm cho đến khi điểm âm vô cực). Điều này khiến Rista bị trầm cảm và tự nguyện dâng Tốt đi tự sát. 
+Nhưng trải qua một buổi chẩn đoán gắt gao, chúng tôi đã "chữa lành" cho Rista. Bằng kiến trúc C++ vượt trội và thuật toán tối ưu, Rista giờ đây tính trước tận Depth 6-7 chỉ trong chớp mắt, liên tục hạ nốc ao các Engine đối thủ một cách không thương tiếc! 🏆
 
 ---
 
@@ -76,13 +74,12 @@ Và giờ là lúc mở giao diện lên để tận hưởng:
 ```bash
 python3 gui/rista_gui.py
 ```
-*(Chú ý: Chỉ cần cài thêm một vài thư viện đồ họa cơ bản của Python, chạy mượt trên cả Windows, macOS và Linux)*
 
 ---
 
 ## 🧠 Lời Cảm Ơn (Acknowledgments)
 Dự án Rista vinh dự được kế thừa và học hỏi từ những người khổng lồ trong giới mã nguồn mở:
-- **Stockfish Team & Cộng Đồng**: Cảm ơn các bạn đã cung cấp công cụ huấn luyện [nnue-pytorch](https://github.com/official-stockfish/nnue-pytorch) và chia sẻ các kho dữ liệu (Dataset) khổng lồ trên HuggingFace. Những tài nguyên này là cốt lõi để Rista chuẩn bị bước vào kỷ nguyên Mạng Nơ-ron (NNUE).
+- **Stockfish Team & Cộng Đồng**: Cảm ơn các bạn đã cung cấp công cụ huấn luyện [nnue-pytorch](https://github.com/official-stockfish/nnue-pytorch) và chia sẻ các kho dữ liệu (Dataset) khổng lồ trên HuggingFace. Những tài nguyên này là cốt lõi để Rista tiếp tục tiến hóa.
 
 ---
 **Rista** - Không chỉ là cờ vua, đó là nghệ thuật của sự tiến hóa từ lỗi lầm (và sự ưu việt của C++ trước Python)! 😉
