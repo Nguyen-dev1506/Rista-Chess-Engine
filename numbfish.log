@@ -1,5 +1,0 @@
-DEBUG:root:>>> uci 
-DEBUG:root:>>> uci 
-DEBUG:root:>>> position startpos moves e2e4 
-DEBUG:root:>>> go depth 6 
-DEBUG:root:>>> quit 
