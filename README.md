@@ -1,6 +1,27 @@
 # 🐟 Rista Chess Engine - Sát Thủ Cờ Vua Lấy Cảm Hứng Từ Loài Cá Lóc!
 
+<div align="center">
+  <img src="Thanh_tich_Rista/logo.png" alt="Rista Logo" width="400"/>
+</div>
+
 Chào mừng bạn đến với **Rista**, một Chess Engine được viết hoàn toàn bằng **C++ siêu tốc độ**, kết hợp với một chiếc GUI xinh xắn bằng **Python Tkinter**. Nếu bạn đang tìm kiếm một con bot cờ vua có khả năng tính toán vượt trội, thích "đập" luôn cả các bot khác, thì bạn đến đúng chỗ rồi đấy!
+
+## 🏆 Chiến tích của Rista (Đại chiến với Fruit)
+Rista không chỉ là "chuyên gia múa Hậu" mà còn có khả năng tìm ra những nước đi Brilliant (!!) cực kỳ ảo diệu. Trong trận đấu lịch sử với Engine gạo cội **Fruit**, Rista (phiên bản 3.3) đã thể hiện đẳng cấp vượt trội với các kỹ thuật cắt tỉa ProbCut, SEE Pruning và Capture History:
+
+- **Độ chính xác (Accuracy) khủng khiếp:** Luôn dao động từ 96% đến 97.5%, không chừa cho đối thủ một con đường sống.
+- **Nước đi Brilliant (!!):** Rista liên tục tung ra những đòn phối hợp chiến thuật, hiến quân sắc lẹm khiến Fruit cũng phải "mù mắt".
+
+Dưới đây là một số hình ảnh chứng minh sức mạnh của bé Cá Lóc nhà ta trên bàn cờ:
+
+<p align="center">
+  <img src="Thanh_tich_Rista/Accuracies.png" width="48%" />
+  <img src="Thanh_tich_Rista/Accuracies 2.png" width="48%" />
+</p>
+<p align="center">
+  <img src="Thanh_tich_Rista/Brilliant.png" width="48%" />
+  <img src="Thanh_tich_Rista/Brilliant 2.png" width="48%" />
+</p>
 
 ## 🚀 Tính năng nổi bật
 
