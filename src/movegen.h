@@ -9,7 +9,9 @@ struct MoveList {
     int count = 0;
     
     void add(Move m) {
-        moves[count++] = m;
+        if (count < 256) {
+            moves[count++] = m;
+        }
     }
 };
 

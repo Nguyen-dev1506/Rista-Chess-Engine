@@ -42,5 +42,9 @@ python3 rista_gui.py
 - Mở rộng Opening Book (Sách Khai Cuộc) để đa dạng hóa phong cách đánh.
 - Thêm Null Move Pruning để tăng cường tốc độ cắt tỉa ở các thế trận tĩnh.
 
+## 🧠 Lời Cảm Ơn (Acknowledgments)
+Dự án Rista vinh dự được kế thừa và học hỏi từ những người khổng lồ trong giới mã nguồn mở:
+- **Stockfish Team & Cộng Đồng**: Cảm ơn các bạn đã cung cấp công cụ huấn luyện [nnue-pytorch](https://github.com/official-stockfish/nnue-pytorch) và chia sẻ các kho dữ liệu (Dataset) khổng lồ trên HuggingFace. Những tài nguyên này là cốt lõi để Rista chuẩn bị bước vào kỷ nguyên Mạng Nơ-ron (NNUE).
+
 ---
 **Rista** - Không chỉ là cờ vua, đó là nghệ thuật của sự tiến hóa từ lỗi lầm (và sự ưu việt của C++ trước Python)! 😉

@@ -2,7 +2,7 @@
 #define UCI_H
 
 namespace UCI {
-    void loop();
+    void loop(const char* exe_path);
 }
 
 #endif

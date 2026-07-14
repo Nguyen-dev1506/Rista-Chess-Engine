@@ -89,6 +89,15 @@ class ChessGUI:
         self.is_engine_turn = False
         self.move_history = []
         
+        # Clock State
+        self.wtime_ms = 0
+        self.btime_ms = 0
+        self.winc_ms = 0
+        self.binc_ms = 0
+        self.clock_running = False
+        self.last_clock_tick = 0
+        self.update_clock_job = None
+        
         # Setup UI
         self.setup_ui()
         
@@ -101,13 +110,32 @@ class ChessGUI:
         # Main Frame
         main_frame = tk.Frame(self.root)
         main_frame.pack(padx=10, pady=10)
+        # Left Panel (Board + Player Info)
+        self.left_panel = tk.Frame(main_frame)
+        self.left_panel.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Top Player Info
+        self.top_player_frame = tk.Frame(self.left_panel, height=40)
+        self.top_player_frame.pack(fill=tk.X, pady=(0, 5))
+        self.top_name_lbl = tk.Label(self.top_player_frame, text="Opponent", font=("Arial", 12, "bold"))
+        self.top_name_lbl.pack(side=tk.LEFT, padx=5)
+        self.top_captured_frame = tk.Frame(self.top_player_frame)
+        self.top_captured_frame.pack(side=tk.LEFT, padx=5)
         
         # Board Canvas
-        self.canvas = tk.Canvas(main_frame, width=BOARD_SIZE, height=BOARD_SIZE)
-        self.canvas.pack(side=tk.LEFT, padx=(0, 10))
+        self.canvas = tk.Canvas(self.left_panel, width=BOARD_SIZE, height=BOARD_SIZE)
+        self.canvas.pack()
         self.canvas.bind("<ButtonPress-1>", self.on_canvas_press)
         self.canvas.bind("<B1-Motion>", self.on_canvas_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_canvas_release)
+        
+        # Bottom Player Info
+        self.bottom_player_frame = tk.Frame(self.left_panel, height=40)
+        self.bottom_player_frame.pack(fill=tk.X, pady=(5, 0))
+        self.bottom_name_lbl = tk.Label(self.bottom_player_frame, text="User", font=("Arial", 12, "bold"))
+        self.bottom_name_lbl.pack(side=tk.LEFT, padx=5)
+        self.bottom_captured_frame = tk.Frame(self.bottom_player_frame)
+        self.bottom_captured_frame.pack(side=tk.LEFT, padx=5)
         
         # Right Panel
         right_panel = tk.Frame(main_frame)
@@ -147,6 +175,10 @@ class ChessGUI:
         self.eve4_btn = tk.Button(right_panel, text="Rista vs Fruit", command=lambda: self.start_eve("Fruit"))
         self.eve4_btn.pack(fill=tk.X, pady=2)
         
+        self.eve5_btn = tk.Button(right_panel, text="Rista 3.3 vs Rista 3.0", command=self.start_rista_3_0_match)
+        self.eve5_btn.pack(fill=tk.X, pady=2)
+
+        
         self.log_btn = tk.Button(right_panel, text="Load Game Log", command=self.open_log_viewer)
         self.log_btn.pack(fill=tk.X, pady=(10, 2))
         
@@ -155,7 +187,7 @@ class ChessGUI:
         self.status_label.pack(fill=tk.X, pady=5)
         
         self.draw_board()
-
+        
     def export_pgn(self):
         import chess.pgn
         game = chess.pgn.Game()
@@ -194,19 +226,24 @@ class ChessGUI:
 
     def load_images(self):
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        img_dir = os.path.join(script_dir, "..", "chess pair", "pngs")
+        img_dir = os.path.join(script_dir, "assets", "pngs")
+        self.mini_images = {}
         for symbol, filename in PIECE_FILE_MAP.items():
             path = os.path.join(img_dir, filename)
             if os.path.exists(path):
-                img = Image.open(path).resize((int(CELL_SIZE*0.9), int(CELL_SIZE*0.9)), Image.Resampling.LANCZOS)
-                self.images[symbol] = ImageTk.PhotoImage(img)
+                img = Image.open(path)
+                large_img = img.resize((int(CELL_SIZE*0.9), int(CELL_SIZE*0.9)), Image.Resampling.LANCZOS)
+                self.images[symbol] = ImageTk.PhotoImage(large_img)
+                
+                mini_img = img.resize((25, 25), Image.Resampling.LANCZOS)
+                self.mini_images[symbol] = ImageTk.PhotoImage(mini_img)
 
     def open_log_viewer(self):
         LogViewer(self.root, self.images)
 
 
     def quit_all_engines(self):
-        for attr in ['engine_rista', 'engine_sunfish', 'engine_numbfish', 'engine_vice', 'engine_fruit']:
+        for attr in ['engine_rista', 'engine_rista_legacy', 'engine_sunfish', 'engine_numbfish', 'engine_vice', 'engine_fruit']:
             engine = getattr(self, attr, None)
             if engine:
                 engine.quit()
@@ -230,21 +267,26 @@ class ChessGUI:
                 self.engine_sunfish.send("uci")
                 self.engine_sunfish.send("isready")
             elif opponent == "Numbfish":
-                numbfish_path = os.path.join(script_dir, "..", "numbfish-main", "uci.py")
+                numbfish_path = os.path.join(script_dir, "..", "opponents", "numbfish-main", "uci.py")
                 self.engine_numbfish = UCIEngine([sys.executable, "-u", numbfish_path], "Numbfish")
                 self.engine_numbfish.send("uci")
                 self.engine_numbfish.send("isready")
             elif opponent == "Vice":
-                vice_path = os.path.join(script_dir, "..", "vice-main", "Vice11", "src", "vice12_smp")
+                vice_path = os.path.join(script_dir, "..", "opponents", "vice-main", "Vice11", "src", "vice12_smp")
                 self.engine_vice = UCIEngine([vice_path], "Vice")
                 self.engine_vice.send("uci")
                 self.engine_vice.send("isready")
             elif opponent == "Fruit":
-                fruit_path = os.path.join(script_dir, "..", "Fruit-2.1-master", "src", "fruit")
+                fruit_path = os.path.join(script_dir, "..", "opponents", "Fruit-2.1-master", "src", "fruit")
                 self.engine_fruit = UCIEngine([fruit_path], "Fruit")
                 self.engine_fruit.send("uci")
                 self.engine_fruit.send("isready")
-                
+            elif opponent == "Rista 3.0":
+                rista_legacy_path = os.path.join(script_dir, "..", "rista_3_0")
+                self.engine_rista_legacy = UCIEngine([rista_legacy_path], "Rista 3.0")
+                self.engine_rista_legacy.send("uci")
+                self.engine_rista_legacy.send("isready")
+        
         except Exception as e:
             messagebox.showerror("Engine Error", f"Failed to start engines: {e}")
 
@@ -299,6 +341,16 @@ class ChessGUI:
             except queue.Empty:
                 pass
                 
+        if hasattr(self, 'engine_rista_legacy') and self.engine_rista_legacy:
+            try:
+                while self.engine_rista_legacy:
+                    msg = self.engine_rista_legacy.queue.get_nowait()
+                    print(f"< [Rista 3.0] {msg}")
+                    if msg.startswith("bestmove"):
+                        self.handle_bestmove(msg, self.engine_rista_legacy)
+            except queue.Empty:
+                pass
+                
         self.root.after(100, self.process_engine_queues)
 
     def handle_bestmove(self, msg, engine):
@@ -340,7 +392,60 @@ class ChessGUI:
         self.is_engine_turn = True
         self.request_engine_move()
 
+    def update_player_info(self):
+        flip = hasattr(self, 'flip_board_var') and self.flip_board_var.get()
+        
+        white_player = getattr(self, 'white_player', 'User (White)')
+        black_player = getattr(self, 'black_player', 'Rista (Black)')
+        
+        if flip:
+            self.bottom_name_lbl.config(text=black_player)
+            self.top_name_lbl.config(text=white_player)
+            bottom_color = chess.BLACK
+            top_color = chess.WHITE
+        else:
+            self.bottom_name_lbl.config(text=white_player)
+            self.top_name_lbl.config(text=black_player)
+            bottom_color = chess.WHITE
+            top_color = chess.BLACK
+            
+        initial_pieces = {
+            chess.PAWN: 8, chess.KNIGHT: 2, chess.BISHOP: 2, chess.ROOK: 2, chess.QUEEN: 1
+        }
+        
+        current_pieces = {chess.WHITE: {}, chess.BLACK: {}}
+        for pt in initial_pieces:
+            current_pieces[chess.WHITE][pt] = len(self.board.pieces(pt, chess.WHITE))
+            current_pieces[chess.BLACK][pt] = len(self.board.pieces(pt, chess.BLACK))
+            
+        def get_captured_for(opp_color):
+            captured = []
+            for pt in [chess.PAWN, chess.KNIGHT, chess.BISHOP, chess.ROOK, chess.QUEEN]:
+                missing = initial_pieces[pt] - current_pieces[opp_color][pt]
+                for _ in range(missing):
+                    captured.append((pt, opp_color))
+            return captured
+            
+        bottom_captured = get_captured_for(top_color)
+        top_captured = get_captured_for(bottom_color)
+        
+        self.draw_captured_pieces(self.bottom_captured_frame, bottom_captured)
+        self.draw_captured_pieces(self.top_captured_frame, top_captured)
+        
+    def draw_captured_pieces(self, frame, captured_list):
+        for widget in frame.winfo_children():
+            widget.destroy()
+            
+        for pt, color in captured_list:
+            symbol = chess.piece_symbol(pt)
+            if color == chess.WHITE: symbol = symbol.upper()
+            
+            if symbol in self.mini_images:
+                lbl = tk.Label(frame, image=self.mini_images[symbol])
+                lbl.pack(side=tk.LEFT, padx=1)
+
     def draw_board(self):
+        self.update_player_info()
         self.canvas.delete("all")
         flip = hasattr(self, 'flip_board_var') and self.flip_board_var.get()
         
@@ -501,6 +606,8 @@ class ChessGUI:
         self.status_label.config(text=f"{current_player} is thinking...", fg="red")
         self.root.update_idletasks()
         
+        # NOTE: Rista uses movetime 1000, other engines use depth
+        
         if current_player == "Rista":
             self.engine_rista.send(f"position startpos moves {moves_str}")
             self.engine_rista.send("go movetime 1000")
@@ -516,6 +623,9 @@ class ChessGUI:
         elif current_player == "Fruit":
             self.engine_fruit.send(f"position startpos moves {moves_str}")
             self.engine_fruit.send("go depth 7")
+        elif current_player == "Rista 3.0":
+            self.engine_rista_legacy.send(f"position startpos moves {moves_str}")
+            self.engine_rista_legacy.send("go movetime 1000")
 
     def make_engine_move(self, uci_move):
         try:
@@ -584,6 +694,7 @@ class ChessGUI:
         if self.engine_numbfish: self.engine_numbfish.send("ucinewgame")
         if self.engine_vice: self.engine_vice.send("ucinewgame")
         if self.engine_fruit: self.engine_fruit.send("ucinewgame")
+        if hasattr(self, 'engine_rista_legacy') and self.engine_rista_legacy: self.engine_rista_legacy.send("ucinewgame")
         
         self.status_label.config(text=f"Ready ({white} vs {black})", fg="blue")
         if white != "User":
@@ -645,6 +756,38 @@ class ChessGUI:
         if self.engine_sunfish: self.engine_sunfish.send("ucinewgame")
         if self.engine_numbfish: self.engine_numbfish.send("ucinewgame")
         if self.engine_vice: self.engine_vice.send("ucinewgame")
+        if self.engine_fruit: self.engine_fruit.send("ucinewgame")
+        if hasattr(self, 'engine_rista_legacy') and self.engine_rista_legacy: self.engine_rista_legacy.send("ucinewgame")
+        
+        self.status_label.config(text=f"{white} vs {black} Starting...", fg="blue")
+        self.is_engine_turn = True
+        self.root.after(500, self.trigger_next_engine)
+
+    def start_rista_3_0_match(self):
+        self.status_label.config(text="Khởi động Rista 3.0...", fg="orange")
+        self.root.update_idletasks()
+        self.setup_engines_for_match("Rista 3.0")
+
+        is_rista3_white = (self.rista_color_var.get() == "White")
+        white = "Rista" if is_rista3_white else "Rista 3.0"
+        black = "Rista 3.0" if is_rista3_white else "Rista"
+        
+        self.flip_board_var.set(not is_rista3_white)
+        
+        self.board.reset()
+        self.move_history.clear()
+        
+        self.log_text.config(state=tk.NORMAL)
+        self.log_text.delete(1.0, tk.END)
+        self.log_text.config(state=tk.DISABLED)
+
+        self.selected_sq = None
+        self.white_player = white
+        self.black_player = black
+        
+        self.draw_board()
+        if self.engine_rista: self.engine_rista.send("ucinewgame")
+        if hasattr(self, 'engine_rista_legacy') and self.engine_rista_legacy: self.engine_rista_legacy.send("ucinewgame")
         
         self.status_label.config(text=f"{white} vs {black} Starting...", fg="blue")
         self.is_engine_turn = True
@@ -791,7 +934,7 @@ class LogViewer:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.geometry("800x520")
+    root.geometry("800x650")
     
     app = ChessGUI(root)
     

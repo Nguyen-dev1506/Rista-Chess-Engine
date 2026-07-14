@@ -2,11 +2,18 @@
 #include "bitboard.h"
 #include "magic.h"
 #include <algorithm>
-#include <iostream>
+#include <cmath>
 
 namespace Eval {
     const int PieceValueMG[6] = { 82, 337, 365, 477, 1025, 20000 };
     const int PieceValueEG[6] = { 94, 281, 297, 512,  936, 20000 };
+
+    // Per-piece-type mobility weights, indexed like PieceValueMG/EG
+    // (PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING). Knights/bishops weigh more
+    // per safe square since mobility matters more for minor piece value;
+    // queens weigh least since they're already inherently mobile.
+    const int MobilityWeightMG[6] = { 0, 4, 4, 2, 1, 0 };
+    const int MobilityWeightEG[6] = { 0, 5, 5, 3, 2, 0 };
 
     const int mg_pawn[64] = {
         0, 0, 0, 0, 0, 0, 0, 0,
@@ -326,6 +333,22 @@ namespace Eval {
                                 }
                             }
                         }
+
+                        // Rook on 7th/2nd rank, extra if enemy king still on back rank
+                        // or enemy pawns are still stuck on that rank
+                        bool on_seventh = (color == WHITE) ? (sq / 8 == 6) : (sq / 8 == 1);
+                        if (on_seventh) {
+                            int bonus_mg = 10, bonus_eg = 15;
+                            int opp_king_sq = (color == WHITE) ? b_king_sq : w_king_sq;
+                            int back_rank = (color == WHITE) ? 7 : 0;
+                            U64 seventh_rank_mask = (color == WHITE) ? Rank7 : Rank2;
+                            if ((opp_king_sq / 8 == back_rank) || (opp_pawns & seventh_rank_mask)) {
+                                bonus_mg += 8;
+                                bonus_eg += 10;
+                            }
+                            mob_mg[color] += bonus_mg;
+                            mob_eg[color] += bonus_eg;
+                        }
                     }
 
                     // Mobility & Outposts
@@ -337,20 +360,24 @@ namespace Eval {
                         else if (pt == QUEEN) attacks = Magic::get_queen_attacks(static_cast<Square>(sq), board.occ());
 
                         U64 safe_moves = attacks & ~board.occ(color) & ~enemy_pawn_attacks[opp];
-                        // Very simple mobility score
                         int mob = popcount(safe_moves);
-                        mob_mg[color] += mob * 3;
-                        mob_eg[color] += mob * 4;
+                        mob_mg[color] += mob * MobilityWeightMG[pt];
+                        mob_eg[color] += mob * MobilityWeightEG[pt];
 
-                        // Outposts (Knights and Bishops on ranks 4,5,6 defended by pawn)
+                        // Outposts (Knights and Bishops on ranks 4,5,6 defended by pawn,
+                        // and not challengeable by an enemy pawn on an adjacent file)
                         if (pt == KNIGHT || pt == BISHOP) {
                             int r = (color == WHITE) ? (sq / 8) : 7 - (sq / 8);
                             if (r >= 3 && r <= 5) { // rank 4, 5, 6
-                                U64 pawn_defenders = (color == WHITE) ? 
+                                U64 pawn_defenders = (color == WHITE) ?
                                     (((1ULL << sq) >> 9) & ~FileH) | (((1ULL << sq) >> 7) & ~FileA) :
                                     (((1ULL << sq) << 7) & ~FileH) | (((1ULL << sq) << 9) & ~FileA);
-                                
-                                if (our_pawns & pawn_defenders) {
+
+                                U64 file_mask_here = FileA << (sq % 8);
+                                U64 adjacent_front_span = get_front_span(color, static_cast<Square>(sq)) & ~file_mask_here;
+                                bool can_be_challenged = (opp_pawns & adjacent_front_span) != 0;
+
+                                if ((our_pawns & pawn_defenders) && !can_be_challenged) {
                                     mob_mg[color] += 30;
                                     mob_eg[color] += 20;
                                 }
@@ -428,6 +455,17 @@ namespace Eval {
                     }
                 }
             }
+
+            // Connected rooks: same rank/file with no blockers between them
+            U64 our_rooks = board.pieces[(color == WHITE) ? W_ROOK : B_ROOK];
+            U64 remaining_rooks = our_rooks;
+            while (remaining_rooks) {
+                int r1 = pop_lsb(remaining_rooks);
+                if (Magic::get_rook_attacks(static_cast<Square>(r1), board.occ()) & remaining_rooks) {
+                    mob_mg[color] += 8;
+                    mob_eg[color] += 8;
+                }
+            }
         }
 
         mg[WHITE] += pawn_mg[WHITE] + mob_mg[WHITE] + ks_mg[WHITE];
@@ -486,8 +524,15 @@ namespace Eval {
         int mgPhase = gamePhase;
         if (mgPhase > 24) mgPhase = 24;
         int egPhase = 24 - mgPhase;
-        
+
         int score = (mgScore * mgPhase + egScore * egPhase) / 24;
-        return (board.side_to_move == WHITE) ? score : -score;
+        int result = (board.side_to_move == WHITE) ? score : -score;
+
+        // Tempo bonus: small reward for the side to move, tapered like everything else
+        const int TEMPO_BONUS_MG = 16;
+        const int TEMPO_BONUS_EG = 4;
+        result += (TEMPO_BONUS_MG * mgPhase + TEMPO_BONUS_EG * egPhase) / 24;
+
+        return result;
     }
 }

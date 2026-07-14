@@ -7,6 +7,9 @@
 #include <string>
 #include <sstream>
 #include <thread>
+#include <filesystem>
+#include "book.h"
+#include "eval.h"
 
 namespace UCI {
     Move parse_move(Board& board, const std::string& move_str) {
@@ -34,7 +37,14 @@ namespace UCI {
         return Move();
     }
 
-    void loop() {
+    void loop(const char* exe_path) {
+        Search::init_LMR();
+        std::filesystem::path exe_dir = std::filesystem::absolute(exe_path).parent_path();
+        std::filesystem::path book_path = exe_dir / "books" / "book_small.bin";
+        Book::init(book_path.string());
+        if (!Book::is_loaded()) {
+            std::cout << "info string Failed to load opening book, path: " << book_path.string() << "\n";
+        }
         std::string line;
         Board board;
         int num_threads = 1;
@@ -46,23 +56,55 @@ namespace UCI {
             iss >> token;
             
             if (token == "uci") {
-                std::cout << "id name Rista (Bitboard C++20)\n";
-                std::cout << "id author You\n";
+                std::cout << "id name Rista (Bitboard C++20)" << std::endl;
+                std::cout << "id author You" << std::endl;
                 std::cout << "option name Hash type spin default 16 min 1 max 1024\n";
                 std::cout << "option name Threads type spin default 1 min 1 max 128\n";
-                std::cout << "uciok\n";
+                std::cout << "option name OwnBook type check default true" << std::endl;
+                std::cout << "option name NonPVCheckExt type check default true" << std::endl;
+                std::cout << "option name ImprovingBonus type check default true" << std::endl;
+                std::cout << "option name SingularExt type check default true" << std::endl;
+                std::cout << "uciok" << std::endl;
             } else if (token == "isready") {
-                std::cout << "readyok\n";
+                std::cout << "readyok" << std::endl;
             } else if (token == "setoption") {
                 std::string name, value;
                 iss >> token; // name
                 iss >> name;
                 iss >> token; // value
-                iss >> value;
+                iss >> std::ws;
+                std::getline(iss, value);
+                
                 if (name == "Hash") {
-                    TT.resize(std::stoi(value));
+                    try {
+                        int hash_mb = std::stoi(value);
+                        if (search_thread.joinable()) {
+                            Search::time_over = true;
+                            search_thread.join();
+                        }
+                        TT.resize(hash_mb);
+                    } catch (const std::exception&) {
+                        // invalid value for Hash, ignore
+                    }
                 } else if (name == "Threads") {
-                    num_threads = std::stoi(value);
+                    try {
+                        int threads_val = std::stoi(value);
+                        if (search_thread.joinable()) {
+                            Search::time_over = true;
+                            search_thread.join();
+                        }
+                        num_threads = threads_val;
+                    } catch (const std::exception&) {
+                        // invalid value for Threads, ignore
+                    }
+                } else if (name == "OwnBook") {
+                    Search::own_book = (value == "true");
+                } else if (name == "NonPVCheckExt") {
+                    Search::non_pv_check_ext = (value == "true");
+                } else if (name == "ImprovingBonus") {
+                    Search::improving_bonus_on = (value == "true");
+                } else if (name == "SingularExt") {
+                    Search::singular_ext_on = (value == "true");
                 }
             } else if (token == "ucinewgame") {
                 if (search_thread.joinable()) {
@@ -83,13 +125,18 @@ namespace UCI {
                     iss >> token; // "moves"
                 } else if (pos_type == "fen") {
                     std::string fen = "";
+                    bool hit_moves = false;
                     for (int i = 0; i < 6; i++) {
                         std::string temp;
-                        iss >> temp;
+                        if (!(iss >> temp)) break;
+                        if (temp == "moves") {
+                            hit_moves = true;
+                            break;
+                        }
                         fen += temp + " ";
                     }
                     board.set_fen(fen);
-                    iss >> token; // "moves"
+                    if (!hit_moves) iss >> token; // "moves"
                 }
                 
                 while (iss >> token) {
@@ -103,6 +150,8 @@ namespace UCI {
                 int time = 0;
                 int wtime = 0, btime = 0, winc = 0, binc = 0, movestogo = 0;
                 bool has_movetime = false;
+                long long nodes_limit = 0;
+                int mate_moves = 0;
                 while (iss >> token) {
                     if (token == "depth") iss >> depth;
                     if (token == "wtime") iss >> wtime;
@@ -111,6 +160,10 @@ namespace UCI {
                     if (token == "binc") iss >> binc;
                     if (token == "movestogo") iss >> movestogo;
                     if (token == "movetime") { iss >> time; has_movetime = true; }
+                    if (token == "infinite") { depth = 64; }
+                    if (token == "ponder") { /* not implemented; token consumed so later tokens don't desync */ }
+                    if (token == "nodes") iss >> nodes_limit;
+                    if (token == "mate") iss >> mate_moves;
                 }
                 if (!has_movetime) {
                     int my_time = (board.side_to_move == WHITE) ? wtime : btime;
@@ -119,15 +172,22 @@ namespace UCI {
                         int moves_left = (movestogo > 0) ? movestogo : 30;
                         time = my_time / moves_left + (my_inc * 3 / 4);
                         time = std::min(time, my_time - 50); // chừa buffer an toàn tránh timeout
-                        if (time < 50) time = 50;
+                        if (my_time - 50 >= 50 && time < 50) time = 50;
                     }
+                }
+                // Soft limit: only used to decide whether to start another ID
+                // iteration, never to abort mid-search. "time" above remains the
+                // hard limit exactly as computed/fixed before -- untouched here.
+                int soft_time = time;
+                if (!has_movetime && time > 0) {
+                    soft_time = time * 6 / 10; // ~60% of the hard limit
                 }
                 if (search_thread.joinable()) {
                     Search::time_over = true;
                     search_thread.join();
                 }
                 Search::time_over = false;
-                search_thread = std::thread(Search::start_search, board, depth, time, num_threads);
+                search_thread = std::thread(Search::start_search, board, depth, time, soft_time, num_threads);
             } else if (token == "stop") {
                 Search::time_over = true;
                 if (search_thread.joinable()) {

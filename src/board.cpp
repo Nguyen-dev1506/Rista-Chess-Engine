@@ -17,7 +17,16 @@ void Board::compute_hash() {
         }
     }
     if (side_to_move == BLACK) hash_key ^= Zobrist::side_key;
-    if (en_passant != NO_SQ) hash_key ^= Zobrist::enpassant_keys[en_passant % 8]; // file only for simpler hashing
+    if (en_passant != NO_SQ) {
+        // Only include the en-passant key if a pawn of the side to move
+        // can actually capture en passant (matches Book::compute_polyglot_hash).
+        U64 ep_pawns = pieces[(side_to_move == WHITE) ? W_PAWN : B_PAWN];
+        U64 cap_left = (side_to_move == WHITE) ? ((ep_pawns << 7) & 0x7F7F7F7F7F7F7F7FULL) : ((ep_pawns >> 9) & 0x7F7F7F7F7F7F7F7FULL);
+        U64 cap_right = (side_to_move == WHITE) ? ((ep_pawns << 9) & 0xFEFEFEFEFEFEFEFEULL) : ((ep_pawns >> 7) & 0xFEFEFEFEFEFEFEFEULL);
+        if ((cap_left | cap_right) & (1ULL << en_passant)) {
+            hash_key ^= Zobrist::enpassant_keys[en_passant % 8];
+        }
+    }
     hash_key ^= Zobrist::castle_keys[castle_rights];
 }
 
@@ -43,20 +52,22 @@ void Board::set_fen(const std::string& fen) {
         if (ch == '/') { r--; c = 0; }
         else if (isdigit(ch)) { c += ch - '0'; }
         else {
-            Square sq = static_cast<Square>(r * 8 + c);
-            Piece p = EMPTY_PIECE;
-            switch (ch) {
-                case 'P': p = W_PAWN; break; case 'N': p = W_KNIGHT; break;
-                case 'B': p = W_BISHOP; break; case 'R': p = W_ROOK; break;
-                case 'Q': p = W_QUEEN; break; case 'K': p = W_KING; break;
-                case 'p': p = B_PAWN; break; case 'n': p = B_KNIGHT; break;
-                case 'b': p = B_BISHOP; break; case 'r': p = B_ROOK; break;
-                case 'q': p = B_QUEEN; break; case 'k': p = B_KING; break;
-            }
-            if (p != EMPTY_PIECE) {
-                set_bit(pieces[p], sq);
-                set_bit(colors[piece_color(p)], sq);
-                set_bit(colors[BOTH], sq);
+            if (r >= 0 && r <= 7 && c >= 0 && c <= 7) {
+                Square sq = static_cast<Square>(r * 8 + c);
+                Piece p = EMPTY_PIECE;
+                switch (ch) {
+                    case 'P': p = W_PAWN; break; case 'N': p = W_KNIGHT; break;
+                    case 'B': p = W_BISHOP; break; case 'R': p = W_ROOK; break;
+                    case 'Q': p = W_QUEEN; break; case 'K': p = W_KING; break;
+                    case 'p': p = B_PAWN; break; case 'n': p = B_KNIGHT; break;
+                    case 'b': p = B_BISHOP; break; case 'r': p = B_ROOK; break;
+                    case 'q': p = B_QUEEN; break; case 'k': p = B_KING; break;
+                }
+                if (p != EMPTY_PIECE) {
+                    set_bit(pieces[p], sq);
+                    set_bit(colors[piece_color(p)], sq);
+                    set_bit(colors[BOTH], sq);
+                }
             }
             c++;
         }
@@ -71,14 +82,26 @@ void Board::set_fen(const std::string& fen) {
         if (ch == 'q') castle_rights |= BQ;
     }
 
-    if (ep != "-") {
+    if (ep != "-" && ep.size() >= 2) {
         int f = ep[0] - 'a';
         int r_ep = ep[1] - '1';
         en_passant = static_cast<Square>(r_ep * 8 + f);
     }
 
-    if (!half.empty()) half_moves = std::stoi(half);
-    if (!full.empty()) full_moves = std::stoi(full);
+    if (!half.empty()) {
+        try {
+            half_moves = std::stoi(half);
+        } catch (const std::exception&) {
+            half_moves = 0;
+        }
+    }
+    if (!full.empty()) {
+        try {
+            full_moves = std::stoi(full);
+        } catch (const std::exception&) {
+            full_moves = 1;
+        }
+    }
     
     compute_hash();
 }
@@ -111,7 +134,10 @@ bool Board::is_in_check(Color c) const {
 }
 
 void Board::make_move(Move m) {
-    state_history[state_ply] = {en_passant, castle_rights, half_moves, hash_key, EMPTY_PIECE};
+    // Clamp into range instead of writing out of bounds in the (extremely
+    // rare) case a game/search line exceeds state_history's capacity.
+    int hist_idx = (state_ply < 1024) ? state_ply : 1023;
+    state_history[hist_idx] = {en_passant, castle_rights, half_moves, hash_key, EMPTY_PIECE};
     
     Square from = m.from();
     Square to = m.to();
@@ -121,8 +147,19 @@ void Board::make_move(Move m) {
     Piece captured = piece_on(to);
     Color us = side_to_move;
     Color them = (us == WHITE) ? BLACK : WHITE;
-    
-    state_history[state_ply].captured = captured;
+
+    // Precompute (before any piece mutation) whether the existing en-passant
+    // square could actually be captured by "us" -- matches the same
+    // condition used when this key was originally added to the hash.
+    bool old_ep_capturable = false;
+    if (en_passant != NO_SQ) {
+        U64 ep_pawns = pieces[(us == WHITE) ? W_PAWN : B_PAWN];
+        U64 cap_left = (us == WHITE) ? ((ep_pawns << 7) & 0x7F7F7F7F7F7F7F7FULL) : ((ep_pawns >> 9) & 0x7F7F7F7F7F7F7F7FULL);
+        U64 cap_right = (us == WHITE) ? ((ep_pawns << 9) & 0xFEFEFEFEFEFEFEFEULL) : ((ep_pawns >> 7) & 0xFEFEFEFEFEFEFEFEULL);
+        old_ep_capturable = (cap_left | cap_right) & (1ULL << en_passant);
+    }
+
+    state_history[hist_idx].captured = captured;
     
     // Remove piece from source
     clear_bit(pieces[p], from);
@@ -179,13 +216,18 @@ void Board::make_move(Move m) {
     }
     
     // Update hash for ep and castle
-    if (en_passant != NO_SQ) hash_key ^= Zobrist::enpassant_keys[en_passant % 8];
+    if (en_passant != NO_SQ && old_ep_capturable) hash_key ^= Zobrist::enpassant_keys[en_passant % 8];
     hash_key ^= Zobrist::castle_keys[castle_rights];
-    
+
     en_passant = NO_SQ;
     if (flags == DOUBLE_PAWN) {
         en_passant = (us == WHITE) ? static_cast<Square>(to - 8) : static_cast<Square>(to + 8);
-        hash_key ^= Zobrist::enpassant_keys[en_passant % 8];
+        U64 new_ep_pawns = pieces[(them == WHITE) ? W_PAWN : B_PAWN];
+        U64 new_cap_left = (them == WHITE) ? ((new_ep_pawns << 7) & 0x7F7F7F7F7F7F7F7FULL) : ((new_ep_pawns >> 9) & 0x7F7F7F7F7F7F7F7FULL);
+        U64 new_cap_right = (them == WHITE) ? ((new_ep_pawns << 9) & 0xFEFEFEFEFEFEFEFEULL) : ((new_ep_pawns >> 7) & 0xFEFEFEFEFEFEFEFEULL);
+        if ((new_cap_left | new_cap_right) & (1ULL << en_passant)) {
+            hash_key ^= Zobrist::enpassant_keys[en_passant % 8];
+        }
     }
     
     // Update castling rights
@@ -215,7 +257,8 @@ void Board::make_move(Move m) {
 
 void Board::unmake_move(Move m) {
     state_ply--;
-    State state = state_history[state_ply];
+    int hist_idx = (state_ply < 1024) ? state_ply : 1023;
+    State state = state_history[hist_idx];
     
     Square from = m.from();
     Square to = m.to();
