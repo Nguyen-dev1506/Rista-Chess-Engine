@@ -8,11 +8,11 @@ Chào mừng bạn đến với **Rista**, một Chess Engine được viết ho
 
 ---
 
-## 🏆 Chiến tích của Rista (Đại chiến với Fruit)
-Rista không chỉ là "chuyên gia múa Hậu" mà còn có khả năng tìm ra những nước đi Brilliant (!!) cực kỳ ảo diệu. Trong trận đấu lịch sử với Engine gạo cội **Fruit**, Rista (phiên bản 3.3) đã thể hiện đẳng cấp vượt trội:
+## 🏆 Chiến tích của Rista (Đại chiến với Fruit 2.1)
+Rista không chỉ là "chuyên gia múa Hậu" mà còn có khả năng tìm ra những nước đi Brilliant (!!) cực kỳ ảo diệu. Trong trận đấu lịch sử với Engine gạo cội **Fruit 2.1**, Rista (phiên bản 3.3) đã thể hiện đẳng cấp vượt trội:
 
 - **Độ chính xác (Accuracy) khủng khiếp:** Luôn dao động từ 96% đến 97.5%, không chừa cho đối thủ một con đường sống.
-- **Nước đi Brilliant (!!):** Rista liên tục tung ra những đòn phối hợp chiến thuật, hiến quân sắc lẹm khiến Fruit cũng phải "mù mắt".
+- **Nước đi Brilliant (!!):** Rista liên tục tung ra những đòn phối hợp chiến thuật, hiến quân sắc lẹm khiến Fruit 2.1 cũng phải "mù mắt".
 
 Dưới đây là một số hình ảnh chứng minh sức mạnh của bé Cá Lóc nhà ta trên bàn cờ:
 
@@ -50,7 +50,7 @@ Dưới đây là một số hình ảnh chứng minh sức mạnh của bé Cá
 
 Rista đi kèm với một giao diện `rista_gui.py` cực kỳ đa năng. Nó không chỉ là nơi bạn đọ sức, mà còn là một đấu trường thực thụ:
 
-- **Đấu Trường Của Các Engine (PvE)**: Bạn có thể mời **tất cả các Chess Engine chuẩn UCI khác** (như Stockfish, Fruit, Sunfish...) vào làm khách mời đặc biệt! Rista GUI sẽ đứng ra làm trọng tài tổ chức trận huyết chiến giữa Rista và các Engine này để xem ai mới là kẻ mạnh nhất.
+- **Đấu Trường Của Các Engine (PvE)**: Bạn có thể mời **tất cả các Chess Engine chuẩn UCI khác** (như Stockfish, Fruit 2.1, Sunfish...) vào làm khách mời đặc biệt! Rista GUI sẽ đứng ra làm trọng tài tổ chức trận huyết chiến giữa Rista và các Engine này để xem ai mới là kẻ mạnh nhất.
 - **Tương Tác Kéo-Thả (Drag & Drop) Mượt Mà:** Chơi cờ như một con người thực sự, kéo thả quân cờ cực kỳ trực quan với màu sắc êm dịu, không hề có độ trễ.
 - **Theo Dõi Tư Duy Rista (Engine Log):** Khung Log Terminal tích hợp ngay trong GUI hiển thị "não bộ" của Rista theo thời gian thực (Độ sâu Depth, Điểm số Centipawns, Tốc độ Nodes/giây, và Principal Variation - nhánh cờ tối ưu đang được ủ mưu).
 
