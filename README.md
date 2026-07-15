@@ -8,27 +8,6 @@ Chào mừng bạn đến với **Rista**, một Chess Engine được viết ho
 
 ---
 
-## 🏆 Chiến tích của Rista (Đại chiến với Fruit 2.1)
-Rista không chỉ là "chuyên gia múa Hậu" mà còn có khả năng tìm ra những nước đi Brilliant (!!) cực kỳ ảo diệu. Trong trận đấu lịch sử với Engine gạo cội **Fruit 2.1**, Rista (phiên bản 3.3) đã thể hiện đẳng cấp vượt trội:
-
-- **Độ chính xác (Accuracy) khủng khiếp:** Luôn dao động từ 96% đến 97.5%, không chừa cho đối thủ một con đường sống.
-- **Nước đi Brilliant (!!):** Rista liên tục tung ra những đòn phối hợp chiến thuật, hiến quân sắc lẹm khiến Fruit 2.1 cũng phải "mù mắt".
-
-Dưới đây là một số hình ảnh chứng minh sức mạnh của bé Cá Lóc nhà ta trên bàn cờ:
-
-<table align="center">
-  <tr>
-    <td><img src="Thanh_tich_Rista/Accuracies.png" alt="Accuracy 1" width="400"/></td>
-    <td><img src="Thanh_tich_Rista/Accuracies 2.png" alt="Accuracy 2" width="400"/></td>
-  </tr>
-  <tr>
-    <td><img src="Thanh_tich_Rista/Brilliant.png" alt="Brilliant 1" width="400"/></td>
-    <td><img src="Thanh_tich_Rista/Brilliant 2.png" alt="Brilliant 2" width="400"/></td>
-  </tr>
-</table>
-
----
-
 ## 🚀 Tính năng nổi bật và Các Thuật Toán Xương Sống
 
 Đằng sau khả năng di chuyển linh hoạt của Rista là một hệ thống thuật toán C++ được tối ưu đến từng bit:
@@ -57,6 +36,27 @@ Rista đi kèm với một giao diện `rista_gui.py` cực kỳ đa năng. Nó 
 ### Câu chuyện về sự tiến hóa của Rista
 Ngày xửa ngày xưa, ở những phiên bản đầu, Rista từng bị một **Bug rò rỉ điểm Material Score trí mạng** (Mỗi lần nhẩm tính nước Phong Cấp ảo, nó tự trừ của mình đi 100 điểm cho đến khi điểm âm vô cực). Điều này khiến Rista bị trầm cảm và tự nguyện dâng Tốt đi tự sát. 
 Nhưng trải qua một buổi chẩn đoán gắt gao, chúng tôi đã "chữa lành" cho Rista. Bằng kiến trúc C++ vượt trội và thuật toán tối ưu, Rista giờ đây tính trước tận Depth 6-7 chỉ trong chớp mắt, liên tục hạ nốc ao các Engine đối thủ một cách không thương tiếc! 🏆
+
+---
+
+## 🏆 Chiến tích của Rista (Đại chiến với Fruit 2.1)
+Rista không chỉ là "chuyên gia múa Hậu" mà còn có khả năng tìm ra những nước đi Brilliant (!!) cực kỳ ảo diệu. Trong trận đấu lịch sử với Engine gạo cội **Fruit 2.1**, Rista (phiên bản 3.3) đã thể hiện đẳng cấp vượt trội:
+
+- **Độ chính xác (Accuracy) khủng khiếp:** Luôn dao động từ 96% đến 97.5%, không chừa cho đối thủ một con đường sống.
+- **Nước đi Brilliant (!!):** Rista liên tục tung ra những đòn phối hợp chiến thuật, hiến quân sắc lẹm khiến Fruit 2.1 cũng phải "mù mắt".
+
+Dưới đây là một số hình ảnh chứng minh sức mạnh của bé Cá Lóc nhà ta trên bàn cờ:
+
+<table align="center">
+  <tr>
+    <td><img src="Thanh_tich_Rista/Accuracies.png" alt="Accuracy 1" width="400"/></td>
+    <td><img src="Thanh_tich_Rista/Accuracies 2.png" alt="Accuracy 2" width="400"/></td>
+  </tr>
+  <tr>
+    <td><img src="Thanh_tich_Rista/Brilliant.png" alt="Brilliant 1" width="400"/></td>
+    <td><img src="Thanh_tich_Rista/Brilliant 2.png" alt="Brilliant 2" width="400"/></td>
+  </tr>
+</table>
 
 ---
 
