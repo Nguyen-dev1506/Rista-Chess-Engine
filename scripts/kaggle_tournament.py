@@ -10,6 +10,10 @@ import threading
 import time
 import os
 import random
+import logging
+
+# Tắt log chuẩn của python-chess để tránh rác màn hình
+logging.getLogger("chess.engine").setLevel(logging.WARNING)
 
 # =====================================================================
 # CẤU HÌNH GIẢI ĐẤU
@@ -58,9 +62,7 @@ def play_game(game_id):
         print(f"[Game {game_id}] Lỗi khởi động engine: {e} (Kiểm tra lại đường dẫn hoặc compile chưa)")
         return
 
-    # Tắt log chuẩn của python-chess để tránh rác màn hình
-    engine_white.logger.disabled = True
-    engine_black.logger.disabled = True
+
 
     board = chess.Board()
     
