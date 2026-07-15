@@ -27,7 +27,7 @@ ENGINE_2_PATH = "./opponents/Fruit-2.1-master/src/fruit"
 LIMIT = chess.engine.Limit(time=1.0) 
 
 TOTAL_GAMES = 100
-CONCURRENCY = 4 # Số luồng chạy song song (4 matches cùng lúc)
+CONCURRENCY = 2 # Số luồng chạy song song (2 matches cùng lúc)
 PGN_OUTPUT = "kaggle_tournament_results.pgn"
 
 # Danh sách một số khai cuộc ngẫu nhiên để các ván không bị trùng lặp
