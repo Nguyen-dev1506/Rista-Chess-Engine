@@ -22,8 +22,8 @@ logging.getLogger("chess.engine").setLevel(logging.WARNING)
 ENGINE_1_PATH = "./rista"
 ENGINE_2_PATH = "./opponents/Fruit-2.1-master/src/fruit"
 
-# Giới hạn tìm kiếm theo độ sâu để loại bỏ ảnh hưởng của CPU lag
-LIMIT = chess.engine.Limit(depth=8) 
+# Thời gian suy nghĩ cho mỗi nước đi
+LIMIT = chess.engine.Limit(time=1.0) 
 
 TOTAL_GAMES = 100
 CONCURRENCY = 2 # Số luồng chạy song song (2 matches cùng lúc)
