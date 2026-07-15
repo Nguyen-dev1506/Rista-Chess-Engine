@@ -15,11 +15,14 @@ Chào mừng bạn đến với **Rista**, một Chess Engine được viết ho
 - **Kiến trúc Lõi C++ Bitboard**: Thay vì dùng mảng 2 chiều truyền thống, Rista biểu diễn toàn bộ bàn cờ bằng các số nguyên 64-bit (Bitboards). Việc này cho phép nó thực hiện các phép toán logic học bit (AND, OR, XOR) để sinh nước đi cực kỳ thần tốc.
 - **Sinh Nước Đi (Move Generation)**: Bắt quân trượt, nhập thành, phong cấp, và ăn tốt qua đường (En Passant) chuẩn xác và cực kỳ tối ưu qua Magic Bitboards.
 - **Thuật Toán Tìm Kiếm & Cắt Tỉa (Search & Pruning)**:
-  - **Negamax & Alpha-Beta Pruning**: Thuật toán cốt lõi giúp Rista xây dựng cây trò chơi, giả định đối thủ luôn đi nước cờ hoàn hảo nhất để tìm ra chuỗi nước đi tối ưu, đồng thời cắt tỉa đi hàng triệu nhánh vô vọng mà không cần xét tới.
+  - **Negamax & Principal Variation Search (PVS)**: Thuật toán cốt lõi giúp Rista xây dựng cây trò chơi, giả định đối thủ luôn đi nước cờ hoàn hảo nhất. PVS giúp tập trung năng lực xử lý vào nhánh chính (PV) để tìm ra chuỗi nước đi tối ưu nhất.
   - **Quiescence Search**: Chống lại căn bệnh nan y "Horizon Effect" (Mù chân trời). Thuật toán này buộc Rista phải tìm kiếm sâu thêm (chỉ xét các nước ăn quân) ở cuối cây để đảm bảo không bỏ sót các pha giăng bẫy bắt hậu.
-  - **ProbCut**: Rista sẽ thử đánh giá nhanh một nhánh ở độ sâu nông hơn. Nếu kết quả quá tệ hoặc quá tốt so với ngưỡng, nó lập tức "chặt đứt" luôn nhánh đó để tiết kiệm thời gian cho các nước đi tiềm năng hơn.
+  - **Null Move Pruning (NMP)**: Cho phép đối thủ đi liên tiếp 2 nước (bỏ lượt của mình). Nếu ngay cả khi đối thủ đi 2 nước mà Rista vẫn đang ưu thế vượt trội, nó lập tức cắt tỉa nhánh này vì phe địch chẳng có cơ hội nào lật kèo.
+  - **Late Move Reductions (LMR)**: Những nước cờ có vẻ "kém tiềm năng" (được sắp xếp ở cuối danh sách) sẽ bị ép giảm độ sâu tính toán (Reduced Depth) để nhường tài nguyên CPU cho các nước cờ hứa hẹn hơn.
+  - **Futility Pruning**: Nhận diện sớm các nhánh "vô vọng" (khi mà điểm số hiện tại cộng thêm một biên độ tối đa vẫn không thể vượt qua alpha) để dừng tính toán nhánh đó ngay lập tức.
+  - **ProbCut**: Rista sẽ thử đánh giá nhanh một nhánh ở độ sâu nông hơn. Nếu kết quả quá tệ hoặc quá tốt so với ngưỡng, nó lập tức "chặt đứt" luôn nhánh đó để tiết kiệm thời gian.
   - **SEE (Static Exchange Evaluation) Pruning**: Hàm đánh giá tĩnh xem xét một pha trao đổi quân trên bàn cờ. Nhờ SEE, Rista biết từ chối những pha hiến quân mù quáng (ví dụ: lấy Hậu đi ăn Chốt có bảo vệ) để không tốn Node tính toán.
-  - **Capture History**: Rista học hỏi từ quá khứ! Nếu một đòn ăn quân ở nhánh trước đó gây ra sự thay đổi điểm số đột biến (Cutoff), nó sẽ ưu tiên xét nước đi đó đầu tiên ở các nhánh tiếp theo.
+  - **Killer Heuristic & Capture History**: Học hỏi từ quá khứ! Rista ghi nhớ những "nước cờ sát thủ" (Killer Moves) dù không ăn quân nhưng lại gây đột biến ở nhánh khác, và ưu tiên xét chúng đầu tiên ở các nhánh tiếp theo.
 - **Transposition Table (Bộ Nhớ Băm Zobrist Hashing)**: Gắn mỗi thế cờ một mã ID 64-bit độc nhất. Nhờ vậy, nếu Rista gặp lại một thế cờ cũ thông qua một chuỗi nước đi khác, nó sẽ lấy luôn kết quả từ bộ nhớ thay vì phải vắt óc tính lại từ đầu.
 - **Sách Khai Cuộc (Opening Book)**: Tự động tra cứu tệp định dạng Polyglot `.bin` để đa dạng hoá khai cuộc, giúp Rista không bị bắt bài.
 
