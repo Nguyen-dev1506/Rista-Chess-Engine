@@ -10,6 +10,9 @@
 #include <filesystem>
 #include "book.h"
 #include "eval.h"
+extern "C" {
+#include "fathom/tbprobe.h"
+}
 
 namespace UCI {
     Move parse_move(Board& board, const std::string& move_str) {
@@ -39,6 +42,8 @@ namespace UCI {
 
     void loop(const char* exe_path) {
         Search::init_LMR();
+        tb_init("syzygy");
+        std::cout << "info string Syzygy tablebases default loaded, largest: " << TB_LARGEST << std::endl;
         std::filesystem::path exe_dir = std::filesystem::absolute(exe_path).parent_path();
         std::filesystem::path book_path = exe_dir / "books" / "book_small.bin";
         Book::init(book_path.string());
@@ -64,6 +69,7 @@ namespace UCI {
                 std::cout << "option name NonPVCheckExt type check default true" << std::endl;
                 std::cout << "option name ImprovingBonus type check default true" << std::endl;
                 std::cout << "option name SingularExt type check default true" << std::endl;
+                std::cout << "option name SyzygyPath type string default <empty>" << std::endl;
                 std::cout << "uciok" << std::endl;
             } else if (token == "isready") {
                 std::cout << "readyok" << std::endl;
@@ -105,6 +111,13 @@ namespace UCI {
                     Search::improving_bonus_on = (value == "true");
                 } else if (name == "SingularExt") {
                     Search::singular_ext_on = (value == "true");
+                } else if (name == "SyzygyPath") {
+                    tb_init(value.c_str());
+                    if (TB_LARGEST > 0) {
+                        std::cout << "info string Syzygy tablebases loaded, largest: " << TB_LARGEST << "\n";
+                    } else {
+                        std::cout << "info string Syzygy tablebases not found or invalid\n";
+                    }
                 }
             } else if (token == "ucinewgame") {
                 if (search_thread.joinable()) {

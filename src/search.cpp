@@ -14,6 +14,10 @@
 #include <bit>
 #include <cmath>
 
+extern "C" {
+#include "fathom/tbprobe.h"
+}
+
 namespace Search {
     std::atomic<uint64_t> nodes(0);
     std::atomic<bool> time_over(false);
@@ -348,9 +352,37 @@ namespace Search {
         
         if (ply > 0 && is_draw(board)) return 0;
 
-        int original_alpha = alpha;
-
         bool is_pv = (beta - alpha > 1);
+
+        int piece_count = std::popcount(board.occ());
+        if (piece_count <= TB_LARGEST && board.castle_rights == 0 && board.half_moves == 0 && !is_pv) {
+            uint64_t _white = board.colors[WHITE];
+            uint64_t _black = board.colors[BLACK];
+            uint64_t _kings = board.pieces[KING] | board.pieces[KING+6];
+            uint64_t _queens = board.pieces[QUEEN] | board.pieces[QUEEN+6];
+            uint64_t _rooks = board.pieces[ROOK] | board.pieces[ROOK+6];
+            uint64_t _bishops = board.pieces[BISHOP] | board.pieces[BISHOP+6];
+            uint64_t _knights = board.pieces[KNIGHT] | board.pieces[KNIGHT+6];
+            uint64_t _pawns = board.pieces[PAWN] | board.pieces[PAWN+6];
+            unsigned _ep = (board.en_passant != 64) ? board.en_passant : 0;
+            bool _turn = (board.side_to_move == WHITE);
+
+            unsigned tb_res = tb_probe_wdl(_white, _black, _kings, _queens, _rooks, _bishops, _knights, _pawns, 0, 0, _ep, _turn);
+            if (tb_res != 0xFFFFFFFF) { // TB_RESULT_FAILED
+                int tb_score = 0;
+                if (tb_res == 4) tb_score = 15000 - ply; // TB_WIN
+                else if (tb_res == 0) tb_score = -15000 + ply; // TB_LOSS
+                else if (tb_res == 2) tb_score = 0; // TB_DRAW
+                else if (tb_res == 3) tb_score = 0; // TB_CURSED_WIN
+                else if (tb_res == 1) tb_score = 0; // TB_BLESSED_LOSS
+
+                if (tb_res == 4 || tb_res == 0 || tb_res == 2) {
+                    return tb_score;
+                }
+            }
+        }
+
+        int original_alpha = alpha;
 
         uint16_t tt_move = 0;
         int tt_score = 0;
@@ -645,6 +677,39 @@ namespace Search {
         max_time_ms = hard_time_ms;
         effective_soft_ms.store(soft_time_ms, std::memory_order_relaxed);
 
+        int piece_count = std::popcount(board.occ());
+        if (piece_count <= TB_LARGEST && board.castle_rights == 0 && board.half_moves == 0) {
+            uint64_t _white = board.colors[WHITE];
+            uint64_t _black = board.colors[BLACK];
+            uint64_t _kings = board.pieces[KING] | board.pieces[KING+6];
+            uint64_t _queens = board.pieces[QUEEN] | board.pieces[QUEEN+6];
+            uint64_t _rooks = board.pieces[ROOK] | board.pieces[ROOK+6];
+            uint64_t _bishops = board.pieces[BISHOP] | board.pieces[BISHOP+6];
+            uint64_t _knights = board.pieces[KNIGHT] | board.pieces[KNIGHT+6];
+            uint64_t _pawns = board.pieces[PAWN] | board.pieces[PAWN+6];
+            unsigned _ep = (board.en_passant != 64) ? board.en_passant : 0;
+            bool _turn = (board.side_to_move == WHITE);
+            unsigned results[200];
+            unsigned tb_res = tb_probe_root(_white, _black, _kings, _queens, _rooks, _bishops, _knights, _pawns, 0, 0, _ep, _turn, results);
+            if (tb_res != 0xFFFFFFFF) {
+                unsigned move = tb_res;
+                unsigned from = TB_GET_FROM(move);
+                unsigned to = TB_GET_TO(move);
+                unsigned promotes = TB_GET_PROMOTES(move);
+                std::cout << "info string Syzygy TB hit!" << std::endl;
+                std::cout << "bestmove " << (char)('a' + (from % 8)) << (char)('1' + (from / 8))
+                          << (char)('a' + (to % 8)) << (char)('1' + (to / 8));
+                if (promotes != TB_PROMOTES_NONE) {
+                    if (promotes == TB_PROMOTES_QUEEN) std::cout << 'q';
+                    if (promotes == TB_PROMOTES_ROOK) std::cout << 'r';
+                    if (promotes == TB_PROMOTES_BISHOP) std::cout << 'b';
+                    if (promotes == TB_PROMOTES_KNIGHT) std::cout << 'n';
+                }
+                std::cout << std::endl;
+                return;
+            }
+        }
+        
         std::atomic<uint16_t> global_best_move(0);
 
         auto worker = [&](int thread_id) {

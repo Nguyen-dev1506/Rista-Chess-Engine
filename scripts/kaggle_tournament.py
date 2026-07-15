@@ -14,9 +14,9 @@ import random
 ENGINE_1_PATH = "./rista"
 ENGINE_2_PATH = "./opponents/Fruit-2.1-master/src/fruit"
 
-# Thời gian suy nghĩ cho mỗi nước đi (để chạy nhanh trên Kaggle)
-# Có thể dùng Limit(time=0.5) hoặc Limit(depth=6)
-LIMIT = chess.engine.Limit(time=0.5) 
+# Thời gian suy nghĩ cho mỗi nước đi
+# Có thể dùng Limit(time=1.0) hoặc Limit(depth=6)
+LIMIT = chess.engine.Limit(time=1.0) 
 
 TOTAL_GAMES = 100
 CONCURRENCY = 4 # Số luồng chạy song song (4 matches cùng lúc)

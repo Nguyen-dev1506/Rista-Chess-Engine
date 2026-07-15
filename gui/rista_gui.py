@@ -609,23 +609,47 @@ class ChessGUI:
         # NOTE: Rista uses movetime 1000, other engines use depth
         
         if current_player == "Rista":
-            self.engine_rista.send(f"position startpos moves {moves_str}")
-            self.engine_rista.send("go movetime 1000")
+            if self.engine_rista:
+                self.engine_rista.send(f"position startpos moves {moves_str}")
+                self.engine_rista.send("go movetime 1000")
+            else:
+                self.status_label.config(text="Rista engine not found!", fg="red")
+                self.is_engine_turn = False
         elif current_player == "Sunfish":
-            self.engine_sunfish.send(f"position startpos moves {moves_str}")
-            self.engine_sunfish.send("go wtime 30000 btime 30000 winc 0 binc 0")
+            if self.engine_sunfish:
+                self.engine_sunfish.send(f"position startpos moves {moves_str}")
+                self.engine_sunfish.send("go wtime 30000 btime 30000 winc 0 binc 0")
+            else:
+                self.status_label.config(text="Sunfish engine not found!", fg="red")
+                self.is_engine_turn = False
         elif current_player == "Numbfish":
-            self.engine_numbfish.send(f"position startpos moves {moves_str}")
-            self.engine_numbfish.send("go depth 6")
+            if self.engine_numbfish:
+                self.engine_numbfish.send(f"position startpos moves {moves_str}")
+                self.engine_numbfish.send("go depth 6")
+            else:
+                self.status_label.config(text="Numbfish engine not found!", fg="red")
+                self.is_engine_turn = False
         elif current_player == "Vice":
-            self.engine_vice.send(f"position startpos moves {moves_str}")
-            self.engine_vice.send("go depth 7")
+            if self.engine_vice:
+                self.engine_vice.send(f"position startpos moves {moves_str}")
+                self.engine_vice.send("go depth 7")
+            else:
+                self.status_label.config(text="Vice engine not found!", fg="red")
+                self.is_engine_turn = False
         elif current_player == "Fruit":
-            self.engine_fruit.send(f"position startpos moves {moves_str}")
-            self.engine_fruit.send("go depth 7")
+            if self.engine_fruit:
+                self.engine_fruit.send(f"position startpos moves {moves_str}")
+                self.engine_fruit.send("go depth 7")
+            else:
+                self.status_label.config(text="Fruit engine not found!", fg="red")
+                self.is_engine_turn = False
         elif current_player == "Rista 3.0":
-            self.engine_rista_legacy.send(f"position startpos moves {moves_str}")
-            self.engine_rista_legacy.send("go movetime 1000")
+            if hasattr(self, 'engine_rista_legacy') and self.engine_rista_legacy:
+                self.engine_rista_legacy.send(f"position startpos moves {moves_str}")
+                self.engine_rista_legacy.send("go movetime 1000")
+            else:
+                self.status_label.config(text="Rista 3.0 engine not found!", fg="red")
+                self.is_engine_turn = False
 
     def make_engine_move(self, uci_move):
         try:
