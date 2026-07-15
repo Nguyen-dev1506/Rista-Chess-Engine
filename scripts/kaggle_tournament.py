@@ -22,9 +22,8 @@ logging.getLogger("chess.engine").setLevel(logging.WARNING)
 ENGINE_1_PATH = "./rista"
 ENGINE_2_PATH = "./opponents/Fruit-2.1-master/src/fruit"
 
-# Thời gian suy nghĩ cho mỗi nước đi
-# Có thể dùng Limit(time=1.0) hoặc Limit(depth=6)
-LIMIT = chess.engine.Limit(time=1.0) 
+# Giới hạn tìm kiếm theo độ sâu để loại bỏ ảnh hưởng của CPU lag
+LIMIT = chess.engine.Limit(depth=8) 
 
 TOTAL_GAMES = 100
 CONCURRENCY = 2 # Số luồng chạy song song (2 matches cùng lúc)
@@ -54,10 +53,13 @@ def play_game(game_id):
         white_path, white_name = ENGINE_2_PATH, "Fruit 2.1"
         black_path, black_name = ENGINE_1_PATH, "Rista"
 
-    try:
         # Khởi tạo engine
         engine_white = chess.engine.SimpleEngine.popen_uci(white_path)
         engine_black = chess.engine.SimpleEngine.popen_uci(black_path)
+        
+        # Cấu hình bộ nhớ băm Hash 128MB để tăng sức mạnh tính toán
+        engine_white.configure({"Hash": 128})
+        engine_black.configure({"Hash": 128})
     except Exception as e:
         print(f"[Game {game_id}] Lỗi khởi động engine: {e} (Kiểm tra lại đường dẫn hoặc compile chưa)")
         return
