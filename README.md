@@ -50,8 +50,7 @@ Dưới đây là một số hình ảnh chứng minh sức mạnh của bé Cá
 
 Rista đi kèm với một giao diện `rista_gui.py` cực kỳ đa năng. Nó không chỉ là nơi bạn đọ sức, mà còn là một đấu trường thực thụ:
 
-- **Đấu Trường Của Các Engine (PvE)**: Bạn có thể mời **tất cả các Chess Engine chuẩn UCI khác** (như Stockfish, Fruit 2.1, Sunfish...) vào làm khách mời đặc biệt! Rista GUI sẽ đứng ra làm trọng tài tổ chức trận huyết chiến giữa Rista và các Engine này để xem ai mới là kẻ mạnh nhất.
-  - *Cách mời khách:* Chỉ cần mở tệp `gui/rista_gui.py`, tìm đến hàm `setup_engines_for_match`, thêm đường dẫn đến file thực thi của Engine khách mời (ví dụ: `elif opponent == "Stockfish": ...`), và thêm một nút bấm vào giao diện UI là xong! Rista GUI đã thiết kế sẵn luồng (Thread) và Hàng đợi (Queue) xử lý trơn tru mọi giao tiếp qua chuẩn UCI.
+- **Đấu Trường Của Các Engine (PvE)**: Không chỉ dừng lại ở việc thi đấu với người, Rista GUI đã mời sẵn một dàn khách mời đặc biệt là các Chess Engine chuẩn UCI khác: **Sunfish**, **Numbfish**, **Vice**, **Fruit 2.1** và cả người tiền nhiệm **Rista 3.0**! Rista GUI sẽ đứng ra làm trọng tài tổ chức các trận huyết chiến giữa Rista và các Engine này để xem ai mới là kẻ mạnh nhất.
 - **Tương Tác Kéo-Thả (Drag & Drop) Mượt Mà:** Chơi cờ như một con người thực sự, kéo thả quân cờ cực kỳ trực quan với màu sắc êm dịu, không hề có độ trễ.
 - **Theo Dõi Tư Duy Rista (Engine Log):** Khung Log Terminal tích hợp ngay trong GUI hiển thị "não bộ" của Rista theo thời gian thực (Độ sâu Depth, Điểm số Centipawns, Tốc độ Nodes/giây, và Principal Variation - nhánh cờ tối ưu đang được ủ mưu).
 
